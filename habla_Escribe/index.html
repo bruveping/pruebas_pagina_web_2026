@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="es" class="dark h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Anotador Inteligente Habla-Escribe</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              400: '#60a5fa',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    :root {
+      --bg-main: #0f172a;
+      --text-main: #f8fafc;
+      --panel-bg: rgba(30, 41, 59, 0.7);
+      --panel-border: rgba(255, 255, 255, 0.1);
+      --textarea-bg: transparent;
+      --subtext: #94a3b8;
+    }
+
+    html:not(.dark) {
+      --bg-main: #f1f5f9;
+      --text-main: #0f172a;
+      --panel-bg: rgba(255, 255, 255, 0.85);
+      --panel-border: rgba(0, 0, 0, 0.1);
+      --textarea-bg: #ffffff;
+      --subtext: #64748b;
+    }
+
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      transition: background-color 0.3s ease, color 0.3s ease;
+    }
+    
+    textarea::-webkit-scrollbar {
+      width: 8px;
+    }
+    textarea::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    textarea::-webkit-scrollbar-thumb {
+      background-color: rgba(148, 163, 184, 0.3);
+      border-radius: 9999px;
+    }
+
+    @keyframes pulse-ring {
+      0% { transform: scale(0.85); opacity: 0.8; }
+      100% { transform: scale(1.4); opacity: 0; }
+    }
+    .pulsing-ring {
+      animation: pulse-ring 1.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+    }
+    
+    .glass-panel {
+      background: var(--panel-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--panel-border);
+      transition: background 0.3s ease, border-color 0.3s ease;
+    }
+
+    /* Waveform visual animation */
+    .wave-bar {
+      display: inline-block;
+      width: 3px;
+      height: 12px;
+      margin: 0 1px;
+      border-radius: 2px;
+      background-color: #ef4444;
+      animation: wave 1.2s ease-in-out infinite;
+    }
+    .wave-bar:nth-child(2) { animation-delay: 0.2s; }
+    .wave-bar:nth-child(3) { animation-delay: 0.4s; }
+    .wave-bar:nth-child(4) { animation-delay: 0.1s; }
+
+    @keyframes wave {
+      0%, 100% { height: 6px; }
+      50% { height: 18px; }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col font-sans selection:bg-brand-500 selection:text-white">
+
+  <header class="glass-panel sticky top-0 z-20 px-6 py-4 shadow-md">
+    <div class="max-w-6xl mx-auto flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-brand-600 flex items-center justify-center text-white shadow-lg shadow-brand-500/30">
+          <i class="fa-solid fa-microphone-lines text-lg"></i>
+        </div>
+        <div>
+          <h1 class="font-bold text-xl leading-tight tracking-tight">Habla-Escribe</h1>
+          <p class="text-xs opacity-75">Dictado en tiempo real con inserción por cursor</p>
+        </div>
+      </div>
+      
+      <div class="flex items-center space-x-3">
+        <select id="lang-select" class="bg-slate-800 dark:bg-slate-800 bg-white border border-slate-300 dark:border-slate-700 text-sm rounded-xl px-3 py-2 focus:outline-none focus:border-brand-500 transition-colors cursor-pointer">
+          <option value="es-AR" selected>Español (Argentina)</option>
+          <option value="es-ES">Español (España)</option>
+          <option value="es-MX">Español (México)</option>
+          <option value="en-US">English (US)</option>
+        </select>
+
+        <!-- Light / Dark Theme Switcher -->
+        <button id="btn-theme" class="w-10 h-10 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 flex items-center justify-center hover:border-brand-500 transition-colors" title="Cambiar tema (Claro / Oscuro)">
+          <i id="theme-icon" class="fa-solid fa-moon text-amber-400"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-1 max-w-6xl w-full mx-auto px-4 py-6 flex flex-col space-y-4">
+    
+    <!-- Controls Toolbar -->
+    <div class="glass-panel rounded-2xl p-4 flex flex-col lg:flex-row items-center justify-between gap-4 shadow-lg">
+      
+      <!-- Mic Recording Button -->
+      <div class="flex items-center justify-between w-full lg:w-auto space-x-4">
+        <div class="relative flex items-center">
+          <div id="record-pulse" class="absolute inset-0 rounded-full bg-red-500 opacity-0 pointer-events-none"></div>
+          <button id="btn-record" class="relative z-10 flex items-center justify-center space-x-2 px-6 py-3 rounded-xl bg-brand-600 hover:bg-brand-500 active:bg-brand-700 text-white font-medium shadow-lg shadow-brand-500/25 transition-all duration-200">
+            <i id="mic-icon" class="fa-solid fa-microphone text-lg"></i>
+            <span id="mic-text">Iniciar Dictado</span>
+          </button>
+        </div>
+
+        <!-- Recording Indicator -->
+        <div id="status-indicator" class="flex items-center space-x-2 opacity-0 transition-opacity duration-300">
+          <div class="flex items-center h-4">
+            <span class="wave-bar"></span>
+            <span class="wave-bar"></span>
+            <span class="wave-bar"></span>
+            <span class="wave-bar"></span>
+          </div>
+          <span class="text-sm font-medium text-red-500 dark:text-red-400">Grabando...</span>
+        </div>
+      </div>
+
+      <!-- Action Buttons & Options -->
+      <div class="flex flex-wrap items-center gap-2.5 w-full lg:w-auto justify-end">
+        
+        <!-- Punctuation Switch Button -->
+        <button id="btn-punctuation" class="px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-sm font-medium flex items-center space-x-2 transition-all hover:border-brand-500">
+          <i class="fa-solid fa-icons text-brand-500"></i>
+          <span>Puntuación:</span>
+          <span id="punctuation-badge" class="px-2 py-0.5 text-xs rounded-full bg-slate-300 dark:bg-slate-700 font-bold text-slate-700 dark:text-slate-300">OFF</span>
+        </button>
+
+        <!-- Copy Button -->
+        <button id="btn-copy" class="px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-sm font-medium flex items-center space-x-2 transition-colors hover:border-brand-500">
+          <i class="fa-regular fa-copy"></i>
+          <span>Copiar</span>
+        </button>
+
+        <!-- Export Dropdown -->
+        <div class="relative inline-block text-left">
+          <button id="btn-export-menu" class="px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-sm font-medium flex items-center space-x-2 transition-colors hover:border-brand-500">
+            <i class="fa-solid fa-download"></i>
+            <span>Exportar</span>
+            <i class="fa-solid fa-chevron-down text-xs ml-1"></i>
+          </button>
+          <div id="export-dropdown" class="hidden absolute right-0 mt-2 w-36 rounded-xl shadow-xl glass-panel border border-slate-200 dark:border-slate-700 py-2 z-30">
+            <button id="btn-export-txt" class="w-full text-left px-4 py-2 text-sm hover:bg-brand-500 hover:text-white transition-colors flex items-center space-x-2">
+              <i class="fa-regular fa-file-lines"></i>
+              <span>Texto (.txt)</span>
+            </button>
+            <button id="btn-export-md" class="w-full text-left px-4 py-2 text-sm hover:bg-brand-500 hover:text-white transition-colors flex items-center space-x-2">
+              <i class="fa-brands fa-markdown"></i>
+              <span>Markdown (.md)</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Clear Button -->
+        <button id="btn-clear" class="px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/30 text-sm font-medium flex items-center space-x-2 transition-colors">
+          <i class="fa-regular fa-trash-can"></i>
+          <span>Limpiar</span>
+        </button>
+      </div>
+
+    </div>
+
+    <div class="relative flex-1 flex flex-col glass-panel rounded-2xl shadow-xl overflow-hidden focus-within:border-brand-500 transition-colors">
+      <textarea id="editor" class="w-full flex-1 min-h-[420px] p-6 bg-transparent text-lg leading-relaxed focus:outline-none resize-none" placeholder="Haz clic en cualquier parte del texto y presiona 'Iniciar Dictado'. Todo lo dictado se insertará exactamente donde se encuentre el cursor..."></textarea>
+      
+      <!-- Footer Info Bar -->
+      <div class="px-6 py-3 border-t border-slate-200/50 dark:border-slate-700/50 text-xs flex flex-wrap items-center justify-between gap-2 text-slate-500 dark:text-slate-400">
+        <div class="flex items-center space-x-4">
+          <span id="punctuation-status-label">Modo Puntuación: <strong class="text-slate-700 dark:text-slate-300">Literal (OFF)</strong></span>
+        </div>
+        <div class="flex items-center space-x-4 font-mono">
+          <span id="word-count">0 palabras</span>
+          <span>•</span>
+          <span id="char-count">0 caracteres</span>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <div id="toast" class="fixed bottom-6 right-6 transform translate-y-20 opacity-0 transition-all duration-300 z-50 bg-slate-800 text-white px-5 py-3 rounded-xl shadow-2xl border border-slate-700 flex items-center space-x-3 pointer-events-none">
+    <i id="toast-icon" class="fa-solid fa-check-circle text-brand-400 text-lg"></i>
+    <span id="toast-msg" class="font-medium text-sm">Notificación</span>
+  </div>
+
+  <script>
+    // Elements references
+    const htmlEl = document.documentElement;
+    const editor = document.getElementById('editor');
+    const btnRecord = document.getElementById('btn-record');
+    const micIcon = document.getElementById('mic-icon');
+    const micText = document.getElementById('mic-text');
+    const recordPulse = document.getElementById('record-pulse');
+    const statusIndicator = document.getElementById('status-indicator');
+    const langSelect = document.getElementById('lang-select');
+    const btnTheme = document.getElementById('btn-theme');
+    const themeIcon = document.getElementById('theme-icon');
+    
+    // Punctuation Controls
+    const btnPunctuation = document.getElementById('btn-punctuation');
+    const punctuationBadge = document.getElementById('punctuation-badge');
+    const punctuationStatusLabel = document.getElementById('punctuation-status-label');
+
+    // Action Controls
+    const btnCopy = document.getElementById('btn-copy');
+    const btnClear = document.getElementById('btn-clear');
+    const btnExportMenu = document.getElementById('btn-export-menu');
+    const exportDropdown = document.getElementById('export-dropdown');
+    const btnExportTxt = document.getElementById('btn-export-txt');
+    const btnExportMd = document.getElementById('btn-export-md');
+
+    // Metrics
+    const charCount = document.getElementById('char-count');
+    const wordCount = document.getElementById('word-count');
+
+    // CRITICAL CURSOR LOGIC ANCHORS
+    let textBefore = "";
+    let textAfter = "";
+    
+    // Application States
+    let recognition = null;
+    let isListening = false;
+    let isInterimActive = false;
+    let punctuationEnabled = false; // Default: OFF (Literal mode)
+
+    btnTheme.addEventListener('click', () => {
+      if (htmlEl.classList.contains('dark')) {
+        htmlEl.classList.remove('dark');
+        themeIcon.className = 'fa-solid fa-sun text-amber-500';
+      } else {
+        htmlEl.classList.add('dark');
+        themeIcon.className = 'fa-solid fa-moon text-amber-400';
+      }
+    });
+
+    btnPunctuation.addEventListener('click', () => {
+      punctuationEnabled = !punctuationEnabled;
+      if (punctuationEnabled) {
+        punctuationBadge.textContent = "ON";
+        punctuationBadge.className = "px-2 py-0.5 text-xs rounded-full bg-emerald-500 text-white font-bold";
+        punctuationStatusLabel.innerHTML = 'Modo Puntuación: <strong class="text-emerald-500">Signos Activados (ON)</strong>';
+        showToast('Puntuación ortográfica activada', 'info');
+      } else {
+        punctuationBadge.textContent = "OFF";
+        punctuationBadge.className = "px-2 py-0.5 text-xs rounded-full bg-slate-300 dark:bg-slate-700 font-bold text-slate-700 dark:text-slate-300";
+        punctuationStatusLabel.innerHTML = 'Modo Puntuación: <strong class="text-slate-700 dark:text-slate-300">Literal (OFF)</strong>';
+        showToast('Dictado literal activado (sin símbolos)', 'info');
+      }
+    });
+
+    function updateCursorAnchors() {
+      // Avoid corrupting cursor position while interim speech is dynamically previewing
+      if (isInterimActive) return; 
+
+      textBefore = editor.value.substring(0, editor.selectionStart);
+      textAfter = editor.value.substring(editor.selectionEnd);
+    }
+
+    function updateMetrics() {
+      const text = editor.value;
+      charCount.textContent = `${text.length} caracteres`;
+      
+      const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+      wordCount.textContent = `${words} palabras`;
+    }
+
+    // Attach listeners for interaction events to track exact caret location
+    ['click', 'keyup', 'focus', 'touchend', 'input'].forEach(evt => {
+      editor.addEventListener(evt, () => {
+        updateCursorAnchors();
+        updateMetrics();
+      });
+    });
+
+    function parsePunctuation(text) {
+      if (!punctuationEnabled) return text; // Literal dictation if OFF
+
+      let t = text;
+      // High-priority multi-word replacements
+      t = t.replace(/\babrir exclamaci[óo]n\b/gi, '¡');
+      t = t.replace(/\bsigno de exclamaci[óo]n\b/gi, '!');
+      t = t.replace(/\babrir interrogaci[óo]n\b/gi, '¿');
+      t = t.replace(/\bsigno de interrogaci[óo]n\b/gi, '?');
+      t = t.replace(/\bpunto y aparte\b/gi, '.\n\n');
+      t = t.replace(/\bpunto y seguido\b/gi, '. ');
+      t = t.replace(/\bnueva l[íi]nea\b/gi, '\n');
+      t = t.replace(/\bdos puntos\b/gi, ':');
+      t = t.replace(/\bcomillas\b/gi, '"');
+      
+      // Standard punctuation
+      t = t.replace(/\bcoma\b/gi, ',');
+      t = t.replace(/\bpunto\b/gi, '.');
+
+      // Clean trailing spaces before punctuation symbols
+      t = t.replace(/\s+([.,;:?!])/g, '$1');
+
+      return t;
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      alert("Tu navegador no soporta la Web Speech API. Por favor utiliza Google Chrome o Microsoft Edge.");
+      btnRecord.disabled = true;
+      btnRecord.classList.add('opacity-50', 'cursor-not-allowed');
+    } else {
+      recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = langSelect.value;
+
+      langSelect.addEventListener('change', () => {
+        recognition.lang = langSelect.value;
+        if (isListening) {
+          recognition.stop();
+        }
+      });
+
+      recognition.onstart = () => {
+        isListening = true;
+        updateUIState(true);
+        isInterimActive = false; 
+        updateCursorAnchors();
+      };
+
+      recognition.onerror = (event) => {
+        console.error('Error de reconocimiento de voz:', event.error);
+        if (event.error === 'not-allowed') {
+          showToast('Permiso de micrófono denegado', 'error');
+          stopDictation();
+        }
+      };
+
+      recognition.onend = () => {
+        if (isListening) {
+          try {
+            recognition.start(); // Auto restart for uninterrupted dictation
+          } catch (e) {
+            stopDictation();
+          }
+        } else {
+          updateUIState(false);
+          isInterimActive = false;
+        }
+      };
+
+      recognition.onresult = (event) => {
+        let finalStr = '';
+        let interimStr = '';
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          if (event.results[i].isFinal) {
+            finalStr += event.results[i][0].transcript;
+          } else {
+            interimStr += event.results[i][0].transcript;
+          }
+        }
+
+        isInterimActive = interimStr.length > 0;
+
+        // Process Final recognized text
+        if (finalStr) {
+          finalStr = parsePunctuation(finalStr);
+          
+          // Smart spacing rule
+          if (textBefore.length > 0 && 
+              !textBefore.endsWith(' ') && 
+              !textBefore.endsWith('\n') && 
+              !finalStr.startsWith(' ') && 
+              !/^[.,;:?!]/.test(finalStr)) {
+            finalStr = ' ' + finalStr;
+          }
+
+          textBefore += finalStr;
+          editor.value = textBefore + textAfter;
+          
+          // Position cursor precisely after inserted final text
+          editor.selectionStart = textBefore.length;
+          editor.selectionEnd = textBefore.length;
+          
+          updateMetrics();
+        }
+
+        // Process Interim preview text
+        if (interimStr) {
+          let tempStr = parsePunctuation(interimStr);
+          
+          if (textBefore.length > 0 && 
+              !textBefore.endsWith(' ') && 
+              !textBefore.endsWith('\n') && 
+              !tempStr.startsWith(' ')) {
+            tempStr = ' ' + tempStr;
+          }
+
+          editor.value = textBefore + tempStr + textAfter;
+          
+          let currentPos = textBefore.length + tempStr.length;
+          editor.selectionStart = currentPos;
+          editor.selectionEnd = currentPos;
+        } else if (finalStr) {
+          editor.selectionStart = textBefore.length;
+          editor.selectionEnd = textBefore.length;
+        }
+      };
+    }
+
+    btnRecord.addEventListener('click', () => {
+      if (!recognition) return;
+      if (!isListening) {
+        editor.focus();
+        updateCursorAnchors();
+        try { recognition.start(); } catch (e) {}
+      } else {
+        stopDictation();
+      }
+    });
+
+    function stopDictation() {
+      isListening = false;
+      isInterimActive = false;
+      if (recognition) {
+        try { recognition.stop(); } catch(e){}
+      }
+      updateUIState(false);
+      updateCursorAnchors();
+    }
+
+    function updateUIState(recording) {
+      if (recording) {
+        btnRecord.classList.remove('bg-brand-600', 'hover:bg-brand-500');
+        btnRecord.classList.add('bg-red-600', 'hover:bg-red-500', 'shadow-red-500/30');
+        micIcon.className = 'fa-solid fa-stop text-lg';
+        micText.textContent = 'Detener';
+        
+        recordPulse.classList.add('pulsing-ring');
+        statusIndicator.classList.remove('opacity-0');
+      } else {
+        btnRecord.classList.add('bg-brand-600', 'hover:bg-brand-500');
+        btnRecord.classList.remove('bg-red-600', 'hover:bg-red-500', 'shadow-red-500/30');
+        micIcon.className = 'fa-solid fa-microphone text-lg';
+        micText.textContent = 'Iniciar Dictado';
+        
+        recordPulse.classList.remove('pulsing-ring');
+        statusIndicator.classList.add('opacity-0');
+      }
+    }
+
+    btnCopy.addEventListener('click', () => {
+      const text = editor.value;
+      if (!text.trim()) {
+        showToast('El editor está vacío', 'info');
+        return;
+      }
+      
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text)
+          .then(() => showToast('Copiado al portapapeles'))
+          .catch(() => fallbackCopy(text));
+      } else {
+        fallbackCopy(text);
+      }
+    });
+
+    function fallbackCopy(text) {
+      editor.select();
+      try {
+        document.execCommand('copy');
+        showToast('Copiado al portapapeles');
+        editor.selectionStart = textBefore.length;
+        editor.selectionEnd = textBefore.length;
+      } catch (err) {
+        showToast('Error al copiar', 'error');
+      }
+    }
+
+    btnClear.addEventListener('click', () => {
+      if (!editor.value.trim()) return;
+      editor.value = '';
+      textBefore = '';
+      textAfter = '';
+      editor.focus();
+      updateMetrics();
+      showToast('Texto borrado', 'info');
+    });
+
+    btnExportMenu.addEventListener('click', (e) => {
+      e.stopPropagation();
+      exportDropdown.classList.toggle('hidden');
+    });
+
+    document.addEventListener('click', () => {
+      exportDropdown.classList.add('hidden');
+    });
+
+    btnExportTxt.addEventListener('click', () => downloadFile('nota.txt', editor.value));
+    btnExportMd.addEventListener('click', () => downloadFile('nota.md', editor.value));
+
+    function downloadFile(filename, content) {
+      if (!content.trim()) {
+        showToast('No hay texto para exportar', 'info');
+        return;
+      }
+      const element = document.createElement('a');
+      element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(content));
+      element.setAttribute('download', filename);
+      element.style.display = 'none';
+      document.body.appendChild(element);
+      element.click();
+      document.body.removeChild(element);
+      showToast(`Archivo ${filename} descargado`);
+    }
+
+    let toastTimeout;
+    function showToast(message, type = 'success') {
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toast-msg');
+      const toastIcon = document.getElementById('toast-icon');
+
+      clearTimeout(toastTimeout);
+
+      if (type === 'error') {
+        toastIcon.className = 'fa-solid fa-circle-exclamation text-red-400 text-lg';
+      } else if (type === 'info') {
+        toastIcon.className = 'fa-solid fa-circle-info text-blue-400 text-lg';
+      } else {
+        toastIcon.className = 'fa-solid fa-check-circle text-brand-400 text-lg';
+      }
+
+      toastMsg.textContent = message;
+      toast.classList.remove('translate-y-20', 'opacity-0');
+
+      toastTimeout = setTimeout(() => {
+        toast.classList.add('translate-y-20', 'opacity-0');
+      }, 3000);
+    }
+
+    // Initial setups
+    updateCursorAnchors();
+    updateMetrics();
+  </script>
+</body>
+</html>
