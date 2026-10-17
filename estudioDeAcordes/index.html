@@ -50,7 +50,7 @@ input[type=color]{padding:0;border:0;background:none;cursor:pointer}
 
  <section class="card space-y-3">
   <div><label class="lbl" for="name">Nombre del acorde</label>
-   <input id="name" data-k="name" class="inp text-lg font-bold" maxlength="24" placeholder="Cmaj7, Dm7, F#m…" autocomplete="off"></div>
+   <input id="name" data-k="name" class="inp text-lg font-bold" placeholder="Cmaj7, Dm7, F#m…" autocomplete="off"></div>
   <div class="grid grid-cols-2 gap-2">
    <div><label class="lbl" for="inst">Instrumento</label><select id="inst" data-k="inst" class="inp"></select></div>
    <div><label class="lbl" for="theme">Estilo</label><select id="theme" data-k="theme" class="inp"></select></div>
@@ -87,6 +87,13 @@ input[type=color]{padding:0;border:0;background:none;cursor:pointer}
   <div class="grid grid-cols-2 gap-3">
    <div><label class="lbl" for="start">Traste inicial</label><input type="number" id="start" data-k="start" min="1" max="24" class="inp"></div>
    <div><label class="lbl" for="size">Tamaño de puntos</label><input type="range" id="size" data-k="size" min="0.7" max="1.3" step="0.05" class="mt-2 w-full"></div>
+  </div>
+  <div class="grid grid-cols-2 gap-3">
+   <div><label class="lbl" for="fretHeight">Altura de trastes</label><input type="range" id="fretHeight" data-k="fretHeight" min="30" max="90" step="2" class="mt-2 w-full"></div>
+   <div><label class="lbl" for="textSize">Tamaño de texto</label><input type="range" id="textSize" data-k="textSize" min="0.7" max="1.8" step="0.05" class="mt-2 w-full"></div>
+  </div>
+  <div class="grid grid-cols-2 gap-3">
+   <div class="col-span-2"><label class="lbl" for="fretThick">Grosor de trastes y filete</label><input type="range" id="fretThick" data-k="fretThick" min="1" max="10" step="0.5" class="mt-2 w-full"></div>
   </div>
   <div class="grid grid-cols-2 gap-y-2">
    <label class="chk"><input type="checkbox" data-k="lefty" class="accent-emerald-500">Zurdo (espejo)</label>
@@ -157,7 +164,7 @@ const TOOLS=[
  ['text','fa-tag','Etiqueta lateral','Clic en un traste para añadir una etiqueta a la derecha (usa el campo Texto libre).'],
  ['erase','fa-eraser','Borrador','Clic sobre un punto, cejilla, línea o etiqueta para eliminarlo.']
 ];
-const DEF=()=>({name:'Cmaj7',inst:'guitar',theme:'blue',frets:12,start:1,size:1,dots:[],open:{},barres:[],links:[],texts:[],uid:1,
+const DEF=()=>({name:'Cmaj7',inst:'guitar',theme:'blue',frets:12,start:1,size:1,fretHeight:54,textSize:1,fretThick:2,dots:[],open:{},barres:[],links:[],texts:[],uid:1,
  color:'#facc15',label:'1',custom:'',auto:true,sharp:true,lefty:false,fretNums:false,tuneLbl:false,transparent:false});
 const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -174,7 +181,6 @@ class ChordDiagramApp{
  read(k,d){try{return JSON.parse(localStorage.getItem(k))||d}catch(e){return d}}
  persist(){try{localStorage.setItem('cl-cur',JSON.stringify(this.S))}catch(e){}}
 
- /* ---------- Interfaz estática ---------- */
  build(){
   $('#inst').innerHTML=Object.entries(INST).map(([k,v])=>`<option value="${k}">${v.n}</option>`).join('');
   $('#theme').innerHTML=Object.entries(THEMES).map(([k,v])=>`<option value="${k}">${v.n}</option>`).join('');
@@ -218,14 +224,12 @@ class ChordDiagramApp{
   });
  }
 
- /* ---------- Historial ---------- */
  marks(){const o={};MK.forEach(k=>o[k]=this.S[k]);return JSON.stringify(o)}
  snap(){this.hist.push(this.marks());if(this.hist.length>100)this.hist.shift();this.fut=[]}
  undo(){if(!this.hist.length)return;this.fut.push(this.marks());Object.assign(this.S,JSON.parse(this.hist.pop()));this.pend=null;this.render()}
  redo(){if(!this.fut.length)return;this.hist.push(this.marks());Object.assign(this.S,JSON.parse(this.fut.pop()));this.pend=null;this.render()}
  clear(){this.snap();Object.assign(this.S,{dots:[],open:{},barres:[],links:[],texts:[]});this.pend=null;this.render();this.toast('Tablero limpio')}
 
- /* ---------- Interacción ---------- */
  cell(e){
   const sv=$('#box svg');if(!sv)return null;const g=this.g,S=this.S,n=this.n;
   const p=sv.createSVGPoint();p.x=e.clientX;p.y=e.clientY;const q=p.matrixTransform(sv.getScreenCTM().inverse());
@@ -284,18 +288,34 @@ class ChordDiagramApp{
   if(tx){this.snap();S.texts=S.texts.filter(x=>x!==tx);return this.render()}
  }
 
- /* ---------- Render SVG ---------- */
  noteName(s,f){const S=this.S;return(S.sharp?NS:NF)[(INST[S.inst].t[s]+S.start-1+f)%12]}
  render(){
-  const S=this.S,n=this.n,T=THEMES[S.theme]||THEMES.blue,sp=46,fh=54,padL=64,padR=120,nutY=124,bw=(n-1)*sp;
-  const W=padL+bw+padR,H=nutY+S.frets*fh+(S.tuneLbl?52:34);
+  const S=this.S,n=this.n,T=THEMES[S.theme]||THEMES.blue,sp=46,fh=S.fretHeight||54,nutY=124,bw=(n-1)*sp;
+  const ts=S.textSize||1;
+  const fretThick=S.fretThick||2;
+
+  // Dynamic calculation for text measurements to pad SVG canvas dynamically
+  let maxLeftTextLen=0;
+  if(S.fretNums){
+   for(let f=1;f<=S.frets;f++) maxLeftTextLen=Math.max(maxLeftTextLen, String(S.start-1+f).length);
+  } else if(S.start>1){
+   maxLeftTextLen=Math.max(maxLeftTextLen, (S.start+'fr').length);
+  }
+  const padL = Math.max(76, Math.round(36 + maxLeftTextLen * 18 * ts));
+
+  let maxRightTextLen=0;
+  S.barres.filter(b=>b.f<=S.frets&&b.a<n).forEach(b=>{if(b.t) maxRightTextLen=Math.max(maxRightTextLen, String(b.t).length)});
+  S.texts.filter(t=>t.f<=S.frets).forEach(t=>{if(t.t) maxRightTextLen=Math.max(maxRightTextLen, String(t.t).length)});
+  const padR = Math.max(70, Math.round(30 + maxRightTextLen * 13 * ts));
+
+  const W=padL+bw+padR,H=nutY+S.frets*fh+(S.tuneLbl?Math.round(52*ts):34);
   this.g={sp,fh,padL,nutY,bw};
   const X=s=>padL+(S.lefty?n-1-s:s)*sp,Y=f=>nutY+(f-.5)*fh,r=sp*.37*S.size;
   const ok=d=>d.s<n&&d.f<=S.frets,dots=S.dots.filter(ok),map=new Map(dots.map(d=>[d.id,d]));
   let o=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" font-family="Inter,Arial,sans-serif">`;
   o+=`<rect class="bg" width="${W}" height="${H}" fill="${T.paper}"/>`;
   
-  // Título dinámico multilínea / adaptativo
+  // Dynamic multiline title rendering without character limits
   const rawName=S.name||'';
   const words=rawName.split(' ');
   const lines=[];
@@ -309,6 +329,7 @@ class ChordDiagramApp{
   const lineCount=Math.max(1,lines.length);
   const maxLen=Math.max(...lines.map(l=>l.length),1);
   let fontSize=lineCount>1?Math.min(32,Math.max(16,360/maxLen)):Math.min(36,Math.max(18,400/maxLen));
+  fontSize*=ts;
   const lineHeight=fontSize*1.15;
   const startY=40-((lineCount-1)*lineHeight)/2;
   
@@ -316,41 +337,52 @@ class ChordDiagramApp{
    o+=`<text x="${padL+bw/2}" y="${startY+idx*lineHeight}" text-anchor="middle" font-size="${fontSize.toFixed(1)}" font-weight="800" fill="${T.text}">${esc(line)}</text>`;
   });
 
-  // Diapasón sin borde (sin stroke)
+  // Fretboard surface
   o+=`<rect x="${padL-14}" y="${nutY}" width="${bw+28}" height="${S.frets*fh}" fill="${T.board}"/>`;
-  // marcadores
+  // Markers
   for(let f=1;f<=S.frets;f++){const a=S.start-1+f,m=a%12,cy=Y(f),cx=padL+bw/2;
    if(a>0&&m===0)o+=[.3,.7].map(k=>`<circle cx="${padL+bw*k}" cy="${cy}" r="7" fill="${T.mark}"/>`).join('');
    else if([3,5,7,9].includes(m))o+=`<circle cx="${cx}" cy="${cy}" r="7" fill="${T.mark}"/>`;}
-  // trastes
-  for(let i=1;i<=S.frets;i++)o+=`<line x1="${padL-14}" x2="${padL+bw+14}" y1="${nutY+i*fh}" y2="${nutY+i*fh}" stroke="${T.line}" stroke-width="2"/>`;
+
+  // Frets
+  for(let i=1;i<=S.frets;i++)o+=`<line x1="${padL-14}" x2="${padL+bw+14}" y1="${nutY+i*fh}" y2="${nutY+i*fh}" stroke="${T.line}" stroke-width="${fretThick}"/>`;
   if(S.start===1)o+=`<rect x="${padL-14}" y="${nutY-8}" width="${bw+28}" height="8" rx="2" fill="${T.line}"/>`;
-  // cuerdas más gruesas (aumentado el grosor mínimo de las más finas para impresión/reducción)
+  // Strings
   for(let s=0;s<n;s++){const w=6.8-2.6*s/Math.max(1,n-1);
    o+=`<line x1="${X(s)}" x2="${X(s)}" y1="${nutY}" y2="${nutY+S.frets*fh}" stroke="${T.line}" stroke-width="${w.toFixed(2)}"/>`;}
-  // números de traste
-  if(S.fretNums)for(let f=1;f<=S.frets;f++)o+=`<text x="${padL-24}" y="${Y(f)+5}" text-anchor="end" font-size="14" fill="${T.text}" opacity=".7">${S.start-1+f}</text>`;
-  else if(S.start>1)o+=`<text x="${padL-24}" y="${Y(1)+6}" text-anchor="end" font-size="18" font-weight="700" fill="${T.text}">${S.start}fr</text>`;
-  // cuerdas al aire
+  
+  // Black border lines at top and bottom with customizable thickness
+  const borderThick = Math.max(3, fretThick * 2);
+  o+=`<line x1="${padL-14}" x2="${padL+bw+14}" y1="${nutY}" y2="${nutY}" stroke="#000000" stroke-width="${borderThick}" stroke-linecap="square"/>`;
+  o+=`<line x1="${padL-14}" x2="${padL+bw+14}" y1="${nutY+S.frets*fh}" y2="${nutY+S.frets*fh}" stroke="#000000" stroke-width="${borderThick}" stroke-linecap="square"/>`;
+
+  // Fret numbers and labels
+  const fnSize=Math.round(22*ts);
+  const frSize=Math.round(36*ts);
+  const lblSize=Math.round(21*ts);
+
+  if(S.fretNums)for(let f=1;f<=S.frets;f++)o+=`<text x="${padL-20}" y="${Y(f)+fnSize*.35}" text-anchor="end" font-size="${fnSize}" fill="${T.text}" opacity=".7">${S.start-1+f}</text>`;
+  else if(S.start>1)o+=`<text x="${padL-20}" y="${Y(1)+frSize*.35}" text-anchor="end" font-size="${frSize}" font-weight="800" fill="${T.text}">${S.start}fr</text>`;
+  // Open / Muted string indicators
   for(let s=0;s<n;s++){const v=S.open[s],cx=X(s),cy=nutY-26;
    if(!v)o+=`<circle class="ui" cx="${cx}" cy="${cy}" r="11" fill="none" stroke="${T.line}" stroke-opacity=".25" stroke-dasharray="3 3"/>`;
    else if(v.k==='O')o+=`<circle cx="${cx}" cy="${cy}" r="11" fill="none" stroke="${v.c==='#ffffff'&&T.paper==='#ffffff'?'#dc2626':v.c}" stroke-width="3"/>`;
    else o+=`<path d="M${cx-9} ${cy-9}L${cx+9} ${cy+9}M${cx+9} ${cy-9}L${cx-9} ${cy+9}" stroke="#dc2626" stroke-width="3.5" stroke-linecap="round"/>`;}
-  // relaciones
+  // Relationships/Links
   S.links.forEach(l=>{const A=map.get(l.a),B=map.get(l.b);if(A&&B)o+=`<line x1="${X(A.s)}" y1="${Y(A.f)}" x2="${X(B.s)}" y2="${Y(B.f)}" stroke="${l.c}" stroke-width="${(8*S.size).toFixed(1)}" stroke-linecap="round"/>`});
-  // cejillas
+  // Barres
   S.barres.filter(b=>b.f<=S.frets&&b.a<n).forEach(b=>{const e=Math.min(b.b,n-1),x1=Math.min(X(b.a),X(e)),x2=Math.max(X(b.a),X(e)),h=r*1.1;
    o+=`<rect x="${x1-r*.9}" y="${Y(b.f)-h/2}" width="${x2-x1+r*1.8}" height="${h}" rx="${h/2}" fill="${b.c}" stroke="rgba(0,0,0,.3)" stroke-width="1.5"/>`;
-   if(b.t)o+=`<text x="${padL+bw+26}" y="${Y(b.f)+7}" font-size="21" font-weight="600" fill="${T.text}">${esc(b.t)}</text>`});
-  // puntos
+   if(b.t)o+=`<text x="${padL+bw+20}" y="${Y(b.f)+lblSize*.35}" font-size="${lblSize}" font-weight="600" fill="${T.text}">${esc(b.t)}</text>`});
+  // Finger dots
   dots.forEach(d=>{const t=d.t==='@'?this.noteName(d.s,d.f):d.t,fs=(String(t).length>2?.68:.95)*r;
    o+=`<circle cx="${X(d.s)}" cy="${Y(d.f)}" r="${r}" fill="${d.c}" stroke="rgba(0,0,0,.35)" stroke-width="1.5"/>`;
    if(t)o+=`<text x="${X(d.s)}" y="${Y(d.f)+fs*.35}" text-anchor="middle" font-size="${fs}" font-weight="800" fill="${lum(d.c)>.55?'#0f172a':'#ffffff'}">${esc(t)}</text>`});
-  // etiquetas laterales
-  S.texts.filter(t=>t.f<=S.frets).forEach(t=>o+=`<text x="${padL+bw+26}" y="${Y(t.f)+7}" font-size="21" font-weight="600" fill="${T.text}">${esc(t.t)}</text>`);
-  // nombres de cuerdas
-  if(S.tuneLbl)for(let s=0;s<n;s++)o+=`<text x="${X(s)}" y="${nutY+S.frets*fh+34}" text-anchor="middle" font-size="15" font-weight="700" fill="${T.text}" opacity=".75">${(S.sharp?NS:NF)[INST[S.inst].t[s]%12]}</text>`;
-  // selección pendiente
+  // Side labels
+  S.texts.filter(t=>t.f<=S.frets).forEach(t=>o+=`<text x="${padL+bw+20}" y="${Y(t.f)+lblSize*.35}" font-size="${lblSize}" font-weight="600" fill="${T.text}">${esc(t.t)}</text>`);
+  // Tuning note names
+  if(S.tuneLbl)for(let s=0;s<n;s++)o+=`<text x="${X(s)}" y="${nutY+S.frets*fh+Math.round(34*ts)}" text-anchor="middle" font-size="${Math.round(15*ts)}" font-weight="700" fill="${T.text}" opacity=".75">${(S.sharp?NS:NF)[INST[S.inst].t[s]%12]}</text>`;
+  // Selection feedback UI
   const p=this.pend;
   if(p){const q=typeof p==='object'?p:map.get(p);if(q){const ring=this.tool==='link'?r+6:r;
    o+=`<circle class="ui" cx="${X(q.s)}" cy="${Y(q.f)}" r="${ring}" fill="none" stroke="#4f46e5" stroke-width="3.5" stroke-dasharray="5 4"/>`}}
@@ -358,7 +390,6 @@ class ChordDiagramApp{
   $('#box').innerHTML=o;this.ui();this.persist();
  }
 
- /* ---------- Estado visual de los controles ---------- */
  ui(){
   const S=this.S;
   $$('[data-k]').forEach(el=>{const v=S[el.dataset.k];
@@ -379,7 +410,6 @@ class ChordDiagramApp{
    :'<p class="text-sm text-slate-500">Aún no hay diagramas guardados. Crea uno y pulsa «Guardar diagrama».</p>';
  }
 
- /* ---------- Exportación ---------- */
  fname(ext){return(this.S.name||'acorde').replace(/[^\w#-]+/g,'_')+'.'+ext}
  svgStr(){
   const c=$('#box svg').cloneNode(true);c.querySelectorAll('.ui').forEach(e=>e.remove());
