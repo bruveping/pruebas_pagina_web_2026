@@ -8,3 +8,12 @@ https://bruveping.github.io/pruebas_pagina_web_2026/habla_Escribe/
 ## estudio De Acordes
 estudioDeAcordes [estudioDeAcordes](https://bruveping.github.io/pruebas_pagina_web_2026/estudioDeAcordes/) <br>
 https://bruveping.github.io/pruebas_pagina_web_2026/estudioDeAcordes/
+
+## Tonnetz
+Tonnetz [Tonnetz](https://bruveping.github.io/pruebas_pagina_web_2026/Tonnetz/) <br>
+https://bruveping.github.io/pruebas_pagina_web_2026/Tonnetz/
+
+## progresiones_esquemas_acordes
+progresiones_esquemas_acordes [estudioDeAcordes](https://bruveping.github.io/pruebas_pagina_web_2026/progresiones_esquemas_acordes/) <br>
+https://bruveping.github.io/pruebas_pagina_web_2026/progresiones_esquemas_acordes/
+
