@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tonnetz Progression Generator</title>
+<style>
+:root{--bg:#0c0f1a;--panel:#141828;--line:#272d45;--tx:#e9ebf4;--mut:#8b92ad;--maj:#f2b24a;--min:#7ea6ff}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;color:var(--tx);font:15px/1.45 "Avenir Next","Segoe UI",system-ui,sans-serif;background:radial-gradient(1100px 650px at 15% -10%,#1b2247 0,transparent 60%),var(--bg)}
+header{max-width:1500px;margin:auto;padding:20px 22px 2px}
+h1{margin:0;font:600 clamp(22px,3.4vw,32px) Georgia,"Iowan Old Style","Palatino Linotype",serif;letter-spacing:.2px}
+.sub{color:var(--mut);font-size:13.5px;margin-top:3px}
+.app{display:grid;grid-template-columns:minmax(0,1fr) 370px;gap:16px;max-width:1500px;margin:auto;padding:14px 22px 28px}
+@media(max-width:960px){.app{grid-template-columns:1fr;padding:10px}header{padding:16px 12px 0}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px}
+.side{display:flex;flex-direction:column;gap:12px}
+#tn{width:100%;height:auto;display:block;touch-action:manipulation;--fs:16px}
+.leg{display:flex;flex-wrap:wrap;gap:6px 16px;color:var(--mut);font-size:12.5px;margin-top:8px}
+.leg i{display:inline-block;width:18px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle}
+.hint{color:var(--mut);font-size:12.5px;margin:6px 0 0}
+/* red */
+.tri{fill:rgba(255,255,255,.015);cursor:pointer;transition:fill .5s}
+.tri.M{fill:rgba(242,178,74,.05)}.tri.m{fill:rgba(126,166,255,.05)}
+.tri:hover{fill:rgba(255,255,255,.1)}
+.tri.cp.M{fill:rgba(242,178,74,.2)}.tri.cp.m{fill:rgba(126,166,255,.2)}
+.tri.act.M{fill:rgba(242,178,74,.72)}.tri.act.m{fill:rgba(126,166,255,.72)}
+.e{stroke-width:2;opacity:.5;pointer-events:none}
+.f{stroke:#7482b3}.a{stroke:#e0707a}.b{stroke:#5fc9a0}
+#trail{fill:none;stroke:rgba(255,255,255,.4);stroke-width:2.5;stroke-dasharray:3 7;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+#tok{opacity:0;pointer-events:none;transition:transform .55s cubic-bezier(.4,0,.2,1),opacity .3s}
+#tok.v{opacity:1}
+#tok text{fill:#0c0f1a;font:700 calc(var(--fs) + 2px) Georgia,serif;text-anchor:middle;dominant-baseline:central}
+.nd{cursor:pointer;transform-box:fill-box;transform-origin:center;transition:transform .4s cubic-bezier(.3,1.6,.5,1)}
+.nd circle{fill:#10142280;stroke:#3a4263;stroke-width:1.5;transition:fill .35s,stroke .35s,filter .35s}
+.nd text{fill:#cfd4e8;font:600 var(--fs) system-ui,sans-serif;text-anchor:middle;dominant-baseline:central;pointer-events:none;transition:fill .35s}
+.nd:hover circle{stroke:#aab3d6}
+.nd.pc circle{stroke:#e9ebf4;fill:#222a47}
+.nd.on{transform:scale(1.2)}
+.nd.on circle{fill:#fff;stroke:#fff;filter:drop-shadow(0 0 7px rgba(255,255,255,.75))}
+.nd.on text{fill:#0c0f1a}
+.nd.ping{animation:pg .6s}
+@keyframes pg{50%{transform:scale(1.5)}}
+/* panel */
+.now{text-align:center}
+#cur{font:600 46px/1.1 Georgia,serif;transition:color .4s}
+#cur.M{color:var(--maj)}#cur.m{color:var(--min)}
+#nts{color:var(--mut);margin-top:4px}
+#via{font-size:13px;color:var(--tx);min-height:20px;margin-top:2px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.row+.row{margin-top:10px}
+.lbl{color:var(--mut);font-size:12.5px;margin-bottom:6px}
+button,select,input[type=number]{background:#1c2236;color:var(--tx);border:1px solid var(--line);border-radius:10px;padding:9px 13px;font:inherit;cursor:pointer;transition:background .2s,transform .1s}
+button:hover,select:hover{background:#252d48}button:active{transform:scale(.96)}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--min);outline-offset:2px}
+.pri{background:var(--maj);color:#1a1405;border-color:transparent;font-weight:700;min-width:96px}
+.pri:hover{background:#ffc766}
+input[type=number]{width:68px;cursor:text}
+input[type=range]{flex:1;min-width:120px;accent-color:var(--maj)}
+.sw{display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none}
+.sw input{position:absolute;opacity:0}
+.sw b{position:relative;width:48px;height:26px;border-radius:13px;background:#232a45;border:1px solid var(--line);transition:background .3s}
+.sw b::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:var(--maj);transition:transform .3s}
+.sw input:checked+b::after{transform:translateX(22px);background:var(--min)}
+.sw input:focus-visible+b{outline:2px solid var(--min);outline-offset:2px}
+#chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:flex;flex-direction:column;align-items:center;padding:5px 9px;min-width:52px;border-radius:10px;font-weight:600}
+.chip small{font-size:10.5px;color:var(--mut);font-weight:500;min-height:13px}
+.chip.M{border-color:rgba(242,178,74,.45)}.chip.m{border-color:rgba(126,166,255,.45)}
+.chip.M.on{background:var(--maj);color:#1a1405}.chip.m.on{background:var(--min);color:#0c1224}
+.chip.on small{color:inherit}
+[hidden]{display:none!important}
+button:disabled{opacity:.4;cursor:not-allowed}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:4px;background:#0f1322;border:1px solid var(--line);border-radius:12px;padding:4px;margin-bottom:12px}
+.seg button{border:0;background:transparent;color:var(--mut)}
+.seg button.on{background:var(--maj);color:#1a1405;font-weight:700}
+.danger{width:100%;margin-top:12px;padding:17px 12px;font-size:18px;font-weight:800;letter-spacing:.3px;background:#e0302b;border-color:#ff6f69;color:#fff;border-radius:12px}
+.danger:hover{background:#f23f3a}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Tonnetz Progression Generator</h1>
+  <div class="sub">Transformaciones neo-riemannianas P, L y R sobre la red de quintas y terceras</div>
+</header>
+<main class="app">
+  <section class="card">
+    <svg id="tn" role="img" aria-label="Red Tonnetz interactiva"></svg>
+    <div class="leg">
+      <span><i style="background:#7482b3"></i>Quinta justa</span>
+      <span><i style="background:#e0707a"></i>Tercera mayor</span>
+      <span><i style="background:#5fc9a0"></i>Tercera menor</span>
+      <span><i style="background:var(--maj)"></i>Triángulo mayor</span>
+      <span><i style="background:var(--min)"></i>Triángulo menor</span>
+    </div>
+    <p class="hint" id="hint">Toca un triángulo para empezar una progresión desde ese acorde. Toca una nota para escucharla.</p>
+  </section>
+
+  <aside class="side">
+    <div class="card now">
+      <div id="cur">—</div>
+      <div id="nts"></div>
+      <div id="via"></div>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <button id="bRe" title="Reiniciar" aria-label="Reiniciar">⏮</button>
+        <button id="bPlay" class="pri">▶ Play</button>
+        <button id="bStep" title="Siguiente acorde" aria-label="Siguiente acorde">⏭</button>
+        <button id="bMute" title="Silenciar" aria-label="Silenciar">🔊</button>
+      </div>
+      <div class="row">
+        <span class="lbl" style="margin:0">Tempo</span>
+        <input type="range" id="bpm" min="40" max="240" value="120" aria-label="BPM">
+        <span id="bpmV" style="min-width:64px;text-align:right">120 BPM</span>
+      </div>
+      <div class="row"><label class="sw"><input type="checkbox" id="loop" checked><b></b><span>Repetir en bucle</span></label></div>
+    </div>
+
+    <div class="card">
+      <div class="lbl">Alteraciones y notación</div>
+      <div class="row">
+        <label class="sw"><span>♭ Bemoles</span><input type="checkbox" id="acc"><b></b><span>♯ Sostenidos</span></label>
+      </div>
+      <div class="row">
+        <select id="nota" aria-label="Notación">
+          <option value="1">Do Re Mi…</option>
+          <option value="0">C D E…</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="seg" role="tablist"><button id="mAuto" class="on">Automático</button><button id="mMan">Manual</button></div>
+      <div id="autoBox">
+      <div class="row">
+        <select id="mode" aria-label="Regla">
+          <option value="rnd">Caminata aleatoria P / L / R</option>
+          <option value="PL">Ciclo hexatónico (P–L)</option>
+          <option value="PR">Ciclo octatónico (P–R)</option>
+          <option value="LR">Ciclo L–R (24 acordes)</option>
+        </select>
+        <input type="number" id="len" min="2" max="24" value="8" aria-label="Número de acordes" title="Número de acordes">
+        <button id="bGen">Generar nueva</button>
+      </div>
+      </div>
+      <div id="manBox" hidden>
+        <div class="lbl">Elige un acorde o toca un triángulo de la red</div>
+        <div class="row">
+          <select id="mRoot" aria-label="Fundamental"></select>
+          <select id="mQual" aria-label="Calidad"><option value="0">Mayor</option><option value="1">menor</option></select>
+          <button id="bAdd" class="pri">+ Añadir</button>
+        </div>
+        <div class="lbl" style="margin-top:12px">Siguiente paso desde el último acorde</div>
+        <div class="row">
+          <button data-tr="P">+ P</button><button data-tr="L">+ L</button><button data-tr="R">+ R</button>
+          <button id="bUndo">⌫ Quitar último</button>
+        </div>
+      </div>
+      <div class="lbl" style="margin-top:14px">Progresión · <span id="cnt">0 acordes</span></div>
+      <div id="chips"></div>
+      <button id="bClear" class="danger">✕ BORRAR TODO · VOLVER A 0 ACORDES</button>
+      <div class="row" style="margin-top:12px">
+        <button id="bMidi">⬇ Descargar MIDI (120 BPM)</button>
+      </div>
+    </div>
+  </aside>
+</main>
+
+<script>
+const $=s=>document.querySelector(s),NS='http://www.w3.org/2000/svg';
+const E=(t,a,p)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);p&&p.appendChild(e);return e};
+const N={fl:['C','D♭','D','E♭','E','F','G♭','G','A♭','A','B♭','B'],sh:['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'],
+ sfl:['Do','Re♭','Re','Mi♭','Mi','Fa','Sol♭','Sol','La♭','La','Si♭','Si'],ssh:['Do','Do♯','Re','Re♯','Mi','Fa','Fa♯','Sol','Sol♯','La','La♯','Si']};
+const VIA={P:'Paralela (P)',L:'Sensible (L)',R:'Relativa (R)'};
+const st={manual:false,sharp:false,solf:true,prog:[],idx:-1,playing:false,mute:false,timer:0,cur:null,trail:[],px:0,py:0};
+// Por defecto todo se escribe con bemoles; el interruptor cambia a sostenidos.
+const nn=p=>N[(st.solf?'s':'')+(st.sharp?'sh':'fl')][((p%12)+12)%12];
+const cn=c=>nn(c.r)+(c.m?'m':'');
+const pcs=c=>[c.r,(c.r+(c.m?3:4))%12,(c.r+7)%12];
+const pc=(c,r)=>(((7*c+4*r)%12)+12)%12;   // quinta = +7 en horizontal, tercera mayor = +4 en diagonal
+const TR={P:c=>({r:c.r,m:!c.m}),
+ L:c=>c.m?{r:(c.r+8)%12,m:false}:{r:(c.r+4)%12,m:true},
+ R:c=>c.m?{r:(c.r+3)%12,m:false}:{r:(c.r+9)%12,m:true}};
+
+/* ---------- Red ---------- */
+const S=100,RH=S*Math.sqrt(3)/2,ROWS=6;let W,H,NR,nodes,tris,tok;
+function build(){
+  const svg=$('#tn');svg.innerHTML='';
+  W=innerWidth<700?600:1000;H=RH*(ROWS-1)+90;NR=W<700?27:24;
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);svg.style.setProperty('--fs',W<700?'20px':'16px');
+  st.px=W/2;st.py=H/2;
+  const gT=E('g',{},svg),gE=E('g',{},svg),tr=E('polyline',{id:'trail'},svg);
+  tok=E('g',{id:'tok'},svg);E('text',{id:'tt'},tok);
+  const gN=E('g',{},svg);nodes={};tris=[];
+  for(let r=0;r<ROWS;r++)for(let c=-8;c<=14;c++){
+    const x=(c+r/2)*S,y=H-45-r*RH;if(x<40||x>W-40)continue;
+    const g=E('g',{class:'nd'},gN);E('circle',{cx:x,cy:y,r:NR},g);
+    const t=E('text',{x,y},g),nd={c,r,x,y,p:pc(c,r),g,t};
+    g.onclick=()=>ping(nd);nodes[c+','+r]=nd;
+  }
+  for(const k in nodes){const a=nodes[k];
+    [[1,0,'f'],[0,1,'a'],[-1,1,'b']].forEach(([dc,dr,cl])=>{
+      const b=nodes[(a.c+dc)+','+(a.r+dr)];b&&E('line',{x1:a.x,y1:a.y,x2:b.x,y2:b.y,class:'e '+cl},gE)})}
+  for(let r=0;r<ROWS-1;r++)for(let c=-9;c<=14;c++){
+    [[[c,r],[c+1,r],[c,r+1],0],[[c+1,r],[c,r+1],[c+1,r+1],1]].forEach(([a,b,d,m])=>{
+      const v=[a,b,d].map(q=>nodes[q+'']);if(v.some(z=>!z))return;
+      const cx=(v[0].x+v[1].x+v[2].x)/3,cy=(v[0].y+v[1].y+v[2].y)/3,root=m?pc(c,r+1):pc(c,r);
+      const el=E('polygon',{points:v.map(z=>z.x+','+z.y).join(' '),class:'tri '+(m?'m':'M')},gT);
+      const t={v,m:!!m,root,cx,cy,el};el.onclick=()=>seed({r:root,m:!!m},t);tris.push(t);
+    });
+  }
+  labels();
+}
+function labels(){
+  for(const k in nodes)nodes[k].t.textContent=nn(nodes[k].p);
+  const sel=$('#mRoot'),v=sel.value||'0';
+  sel.innerHTML=[...Array(12)].map((_,i)=>`<option value="${i}">${nn(i)}</option>`).join('');sel.value=v;
+  chips();if(st.cur)show(st.cur,null,true);
+}
+function show(c,t,keepTrail){
+  st.cur=c;
+  const set=pcs(c),cand=tris.filter(x=>x.root===c.r&&x.m===c.m),d=x=>Math.hypot(x.cx-st.px,x.cy-st.py);
+  const p=t||(cand.length?cand.reduce((a,b)=>d(b)<d(a)?b:a):tris[0]);
+  tris.forEach(x=>{x.el.classList.toggle('cp',cand.includes(x));x.el.classList.toggle('act',x===p)});
+  for(const k in nodes){const n=nodes[k];n.g.classList.toggle('pc',set.includes(n.p));n.g.classList.toggle('on',p.v.includes(n))}
+  tok.style.transform=`translate(${p.cx}px,${p.cy}px)`;tok.classList.add('v');
+  $('#tt').textContent=cn(c);
+  if(!keepTrail){st.trail.push(p.cx+','+p.cy);st.trail=st.trail.slice(-14)}
+  $('#trail').setAttribute('points',st.trail.join(' '));
+  st.px=p.cx;st.py=p.cy;
+  $('#cur').textContent=cn(c);$('#cur').className=c.m?'m':'M';
+  $('#nts').textContent=set.map(nn).join(' · ');
+  $('#via').textContent=c.via?'Transformación '+VIA[c.via]:'';
+}
+function ping(n){
+  sound([60+n.p],1.4);const g=n.g;g.classList.remove('ping');void g.getBoundingClientRect();g.classList.add('ping');
+  setTimeout(()=>g.classList.remove('ping'),650);
+}
+
+/* ---------- Generador ---------- */
+const PERM=[[0,1,2],[0,2,1],[1,0,2],[1,2,0],[2,0,1],[2,1,0]];
+function voice(prog){ // conducción de voces: cada acorde se acerca lo máximo al anterior
+  let prev=[60,64,67];
+  prog.forEach(c=>{
+    const q=pcs(c);let best=null;
+    PERM.forEach(pm=>{let cost=0;const ns=pm.map((k,i)=>{let d=((q[k]-prev[i])%12+12)%12;if(d>6)d-=12;cost+=Math.abs(d);return prev[i]+d});
+      if(!best||cost<best.cost)best={cost,ns}});
+    let ns=best.ns.slice().sort((a,b)=>a-b);const avg=ns.reduce((a,b)=>a+b)/3;
+    if(avg>70)ns=ns.map(n=>n-12);else if(avg<55)ns=ns.map(n=>n+12);
+    prev=ns;c.v=[36+c.r,...ns];   // bajo + tríada
+  });
+}
+function gen(start){
+  const n=Math.max(2,Math.min(24,+$('#len').value||8)),mode=$('#mode').value;
+  let c=start||{r:Math.random()*12|0,m:Math.random()<.5},last='';
+  const out=[{r:c.r,m:c.m,via:''}];
+  for(let i=1;i<n;i++){
+    let t;
+    if(mode==='rnd'){do t='PLR'[Math.random()*3|0];while(t===last)}else t=mode[(i-1)%2];
+    c=TR[t](c);last=t;out.push({r:c.r,m:c.m,via:t});
+  }
+  voice(out);st.prog=out;st.idx=-1;st.trail=[];st.px=W/2;st.py=H/2;chips();show(out[0]);
+}
+function seed(c,t){if(st.manual)return addChord(c,t);pause();gen(c);st.trail=[];go(0,t)}
+function clearView(){
+  tris.forEach(x=>x.el.classList.remove('cp','act'));
+  for(const k in nodes)nodes[k].g.classList.remove('pc','on');
+  tok.classList.remove('v');$('#trail').setAttribute('points','');
+  $('#cur').textContent='—';$('#cur').className='';$('#nts').textContent=st.manual?'Añade tu primer acorde':'';$('#via').textContent='';
+}
+/* ---------- Modo manual ---------- */
+function addChord(c,t){
+  pause();const last=st.prog[st.prog.length-1];let via='';
+  if(last)for(const k in TR){const x=TR[k](last);if(x.r===c.r&&x.m===c.m){via=k;break}}
+  st.prog.push({r:c.r,m:c.m,via});voice(st.prog);chips();go(st.prog.length-1,t);
+}
+function undo(){
+  pause();st.prog.pop();voice(st.prog);const n=st.prog.length;st.idx=n-1;chips();
+  if(n)go(n-1,null,true);else{st.cur=null;st.trail=[];clearView()}
+}
+function clearAll(){pause();st.prog=[];st.idx=-1;st.cur=null;st.trail=[];st.px=W/2;st.py=H/2;chips();clearView()}
+function setMode(man){
+  pause();st.manual=man;
+  $('#mAuto').classList.toggle('on',!man);$('#mMan').classList.toggle('on',man);
+  $('#autoBox').hidden=man;$('#manBox').hidden=!man;
+  $('#hint').textContent=man?'Toca un triángulo de la red para añadir ese acorde al final. Toca una nota para escucharla.':'Toca un triángulo para empezar una progresión desde ese acorde. Toca una nota para escucharla.';
+  if(man)clearAll();else gen();
+}
+function chips(){
+  const n=st.prog.length;
+  $('#cnt').textContent=n+(n===1?' acorde':' acordes');
+  $('#bClear').disabled=!n;$('#bUndo').disabled=!n;
+  document.querySelectorAll('[data-tr]').forEach(b=>b.disabled=!n);
+  if(!n){$('#chips').innerHTML='<span class="lbl">Aún no hay acordes.</span>';return}
+  $('#chips').innerHTML=st.prog.map((c,i)=>`<button class="chip ${c.m?'m':'M'}${i===st.idx?' on':''}" data-i="${i}"><small>${c.via||'·'}</small>${cn(c)}</button>`).join('');
+}
+$('#chips').onclick=e=>{const b=e.target.closest('.chip');if(b){pause();go(+b.dataset.i)}};
+
+/* ---------- Audio ---------- */
+let AC,master;
+function ac(){
+  if(!AC){AC=new(window.AudioContext||window.webkitAudioContext)();master=AC.createGain();master.gain.value=st.mute?0:.55;
+    const f=AC.createBiquadFilter();f.type='lowpass';f.frequency.value=2600;master.connect(f).connect(AC.destination)}
+  if(AC.state==='suspended')AC.resume();return AC;
+}
+function sound(notes,dur){
+  const a=ac(),t=a.currentTime;
+  notes.forEach((m,i)=>{
+    const o=a.createOscillator(),g=a.createGain(),v=i&&notes.length>1?.12:.2;
+    o.type=i&&notes.length>1?'triangle':'sine';o.frequency.value=440*2**((m-69)/12);
+    g.gain.setValueAtTime(0.0001,t);g.gain.linearRampToValueAtTime(v,t+.03);
+    g.gain.exponentialRampToValueAtTime(v*.35,t+dur*.8);g.gain.linearRampToValueAtTime(0,t+dur);
+    o.connect(g).connect(master);o.start(t);o.stop(t+dur+.05);
+  });
+}
+
+/* ---------- Reproductor ---------- */
+const dur=()=>4*60/$('#bpm').value;   // un compás de 4/4 por acorde
+function go(i,t,silent){
+  st.idx=i;const c=st.prog[i];show(c,t);
+  [...$('#chips').children].forEach((b,j)=>b.classList.toggle('on',j===i));
+  if(!silent)sound(c.v,dur()*.97);
+}
+function tick(){
+  if(!st.playing)return;
+  let i=st.idx+1;
+  if(i>=st.prog.length){if($('#loop').checked)i=0;else{pause();return}}
+  go(i);st.timer=setTimeout(tick,dur()*1000);
+}
+function ui(){$('#bPlay').textContent=st.playing?'⏸ Pausa':'▶ Play'}
+function play(){if(st.playing||!st.prog.length)return;if(st.idx>=st.prog.length-1)st.idx=-1;st.playing=true;ui();tick()}
+function pause(){st.playing=false;clearTimeout(st.timer);ui()}
+function step(){pause();if(!st.prog.length)return;go((st.idx+1)%st.prog.length)}
+function reset(){pause();st.idx=-1;st.trail=[];st.px=W/2;st.py=H/2;chips();st.prog.length?show(st.prog[0]):clearView()}
+
+/* ---------- MIDI (120 BPM, un compás por acorde) ---------- */
+const vlq=n=>{const b=[n&127];while(n>>=7)b.unshift((n&127)|128);return b};
+function midi(){
+  if(!st.prog.length)return;
+  const T=480,bar=T*4,ev=[];
+  st.prog.forEach((c,i)=>c.v.forEach((n,j)=>{ev.push([i*bar,1,0x90,n,j?84:96]);ev.push([(i+1)*bar,0,0x80,n,0])}));
+  ev.sort((a,b)=>a[0]-b[0]||a[1]-b[1]);
+  const tr=[0,0xFF,0x51,3,0x07,0xA1,0x20,  0,0xFF,0x58,4,4,2,24,8,  0,0xC0,0];
+  let t=0;ev.forEach(e=>{tr.push(...vlq(e[0]-t),e[2],e[3],e[4]);t=e[0]});
+  tr.push(0,0xFF,0x2F,0);
+  const L=tr.length,hd=[77,84,104,100,0,0,0,6,0,0,0,1,T>>8,T&255];
+  const b=new Uint8Array([...hd,77,84,114,107,L>>24&255,L>>16&255,L>>8&255,L&255,...tr]);
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([b],{type:'audio/midi'}));
+  a.download='tonnetz_progresion_120bpm.mid';document.body.appendChild(a);a.click();a.remove();
+}
+
+/* ---------- Eventos ---------- */
+$('#bPlay').onclick=()=>st.playing?pause():play();
+$('#bStep').onclick=step;$('#bRe').onclick=reset;$('#bGen').onclick=()=>{pause();gen()};
+$('#bMidi').onclick=midi;
+$('#bMute').onclick=()=>{st.mute=!st.mute;$('#bMute').textContent=st.mute?'🔇':'🔊';if(master)master.gain.value=st.mute?0:.55};
+$('#bpm').oninput=e=>$('#bpmV').textContent=e.target.value+' BPM';
+$('#acc').onchange=e=>{st.sharp=e.target.checked;labels()};
+$('#nota').onchange=e=>{st.solf=e.target.value==='1';labels()};
+$('#mode').onchange=()=>{pause();gen()};
+$('#len').onchange=()=>{pause();gen()};
+$('#mAuto').onclick=()=>st.manual&&setMode(false);
+$('#mMan').onclick=()=>!st.manual&&setMode(true);
+$('#bAdd').onclick=()=>addChord({r:+$('#mRoot').value,m:$('#mQual').value==='1'});
+document.querySelectorAll('[data-tr]').forEach(b=>b.onclick=()=>{const l=st.prog[st.prog.length-1];if(l)addChord(TR[b.dataset.tr](l))});
+$('#bUndo').onclick=undo;$('#bClear').onclick=clearAll;
+let wide=innerWidth>=700;
+addEventListener('resize',()=>{const w=innerWidth>=700;if(w!==wide){wide=w;build();st.trail=[];if(st.cur)show(st.cur)}});
+addEventListener('keydown',e=>{if(e.code==='Space'&&!/INPUT|SELECT|BUTTON/.test(e.target.tagName)){e.preventDefault();$('#bPlay').click()}});
+
+build();gen();
+</script>
+</body>
+</html>
