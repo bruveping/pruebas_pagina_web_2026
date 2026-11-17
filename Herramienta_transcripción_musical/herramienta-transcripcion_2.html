@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Herramienta de transcripción online</title>
+<style>
+:root{--bg:#12151c;--pn:#1a1f2a;--ln:#2a3140;--tx:#d9deea;--mu:#8791a7;--bl:#5fb3d9;--am:#f5a623;--rs:#e5707e;--gr:#6fcf97;--r:4px}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--tx);font:14px system-ui,sans-serif;display:flex;flex-direction:column;overflow:hidden}
+button,input,select{font:inherit;color:var(--tx);background:#232a38;border:1px solid var(--ln);border-radius:var(--r);padding:5px 9px;cursor:pointer}
+button:hover{background:#2d3648}
+button:focus-visible,input:focus-visible,select:focus-visible,canvas:focus-visible{outline:2px solid var(--bl);outline-offset:1px}
+button.on{background:var(--am);color:#1a1200;border-color:var(--am)}
+input[type=number]{width:92px;cursor:text}
+input[type=range]{padding:0;accent-color:var(--bl);background:none;border:0}
+.mono,kbd,textarea,#tm{font-family:ui-monospace,"JetBrains Mono",Consolas,monospace}
+header{display:flex;gap:10px;align-items:center;padding:6px 12px;border-bottom:1px solid var(--ln);background:var(--pn)}
+header b{font-weight:650}
+#fn{color:var(--mu);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#top{background:var(--pn);border-bottom:3px solid var(--bl);padding:8px 12px;display:flex;flex-direction:column;gap:6px;flex:0 0 auto}
+.bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.bar label{color:var(--mu);font-size:12px}
+.sp{flex:1}
+#tm{font-size:18px;min-width:9.5ch;color:var(--bl)}
+#wfw{position:relative;height:clamp(130px,26vh,280px);background:#0d1016;border:1px solid var(--ln);border-radius:var(--r)}
+canvas{width:100%;height:100%;display:block;touch-action:none;cursor:crosshair}
+#pan{width:100%}
+#ml{display:flex;flex-wrap:wrap;gap:4px;max-height:58px;overflow:auto}
+#ml span{display:flex;gap:2px;align-items:center;background:#232a38;border:1px solid var(--ln);border-radius:var(--r);padding:1px 2px}
+#ml a{color:#f5d76e;cursor:pointer;font:12px ui-monospace,Consolas,monospace;padding:0 4px}
+#ml input{width:110px;padding:2px 5px;font-size:12px;cursor:text}
+#ml button{padding:0 6px}
+#msg{color:var(--am);font-size:12px;min-height:1.2em}
+#tabs{display:none}
+#bottom{flex:1;min-height:0;display:grid;grid-template-columns:1fr 1fr}
+.pane{display:flex;flex-direction:column;min-width:0;min-height:0}
+#pn{border-right:1px solid var(--ln);border-bottom:3px solid var(--rs)}
+#pa{border-bottom:3px solid var(--gr)}
+.ph{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:5px 10px;background:var(--pn);border-bottom:1px solid var(--ln);color:var(--mu)}
+#ed{flex:1;min-height:0}
+#abc{height:34%;min-height:80px;resize:none;background:#10131a;color:#cfe7d4;border:0;border-bottom:1px solid var(--ln);padding:8px 10px;font-size:13px}
+#paper{flex:1;overflow:auto;background:#f3f0e6;padding:6px}
+#help{background:var(--pn);color:var(--tx);border:1px solid var(--ln);border-radius:8px;max-width:760px;width:94vw}
+#help::backdrop{background:#000a}
+#keys{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:6px}
+#keys button{display:flex;gap:8px;text-align:left;align-items:center}
+kbd{background:#0d1016;border:1px solid var(--ln);border-radius:3px;padding:1px 6px;color:var(--am)}
+@media(max-width:860px){
+ body{overflow:auto}
+ #tabs{display:flex;background:var(--pn)}
+ #tabs button{flex:1;border-radius:0;border-width:0 0 3px;border-color:var(--ln)}
+ #tabs button.on{border-color:var(--am)}
+ #bottom{display:block;height:70vh;flex:none}
+ .pane{display:none;height:100%}
+ .pane.on{display:flex}
+ #fn{display:none}
+ .sp{display:none}
+}
+</style>
+</head>
+<body>
+<header>
+ <b>🎧 Herramienta de transcripción online</b><span id="fn">Ningún archivo cargado</span>
+ <button id="bo" title="Ctrl+Alt+O">Abrir audio</button><button id="bh" title="F1 o ?">Atajos (F1)</button>
+ <input type="file" id="fi" accept="audio/*,.mp3,.wav,.flac,.ogg,.m4a,.aac,.opus" hidden>
+</header>
+
+<section id="top" aria-label="Región de loop">
+ <div class="bar">
+  <button id="bb" title="Retroceder (Ctrl+Alt+R)">⏪</button>
+  <button id="bp" title="Play / Pausa (Ctrl+Alt+P)">▶ Play</button>
+  <button id="bs" title="Stop (Ctrl+Alt+S)">■ Stop</button>
+  <button id="bf" title="Avanzar (Ctrl+Alt+F)">⏩</button>
+  <label>± <input type="number" id="st" value="2" min="0.1" step="0.5" style="width:62px"> s</label>
+  <span id="tm">00:00.000</span>
+  <span class="sp"></span>
+  <label>Velocidad <select id="sp"></select></label>
+  <label>Vol <input type="range" id="vo" min="0" max="1" step="0.01" value="1" style="width:90px"></label>
+ </div>
+ <div class="bar">
+  <label>A (ms) <input type="number" id="ia" step="10" min="0"></label>
+  <label>B (ms) <input type="number" id="ib" step="10" min="0"></label>
+  <button id="sa">Fijar A</button><button id="sb">Fijar B</button>
+  <button id="lp" title="Ctrl+Alt+L">⟲ Loop</button><button id="cl">Borrar loop</button>
+  <button id="mk" title="Ctrl+Alt+K">⚑ Marca</button><button id="mu" title="Borra la última marca creada, una a una (Ctrl+Alt+Retroceso)">⌫ Última marca</button><button id="ma">Borrar todas</button>
+  <span class="sp"></span>
+  <button id="zo" title="Ctrl+Alt+X">−</button><button id="zf" title="Ctrl+Alt+Y">Ver todo</button><button id="zi" title="Ctrl+Alt+W">+</button>
+ </div>
+ <div id="wfw"><canvas id="wf" tabindex="0" aria-label="Forma de onda: clic para situar el cabezal, arrastrar para definir el loop"></canvas></div>
+ <input type="range" id="pan" min="0" max="1000" value="0" aria-label="Desplazamiento de la onda">
+ <div id="ml" aria-label="Marcas"></div>
+ <div id="msg" role="status">Clic: situar cabezal · Arrastrar: definir loop A–B · Rueda: desplazar · Ctrl+rueda: zoom</div>
+</section>
+
+<nav id="tabs"><button data-p="pn" class="on">Notas</button><button data-p="pa">ABC</button></nav>
+
+<main id="bottom">
+ <div class="pane on" id="pn">
+  <div class="ph">Notas (Markdown) <span class="sp"></span><button id="bt" title="Ctrl+Alt+I">⏱ Marca de tiempo</button><button id="bm" title="Inserta la lista de marcas con sus etiquetas">⚑ Marcas → notas</button><button id="bd">⬇ Descargar .md</button></div>
+  <div id="ed"></div>
+ </div>
+ <div class="pane" id="pa">
+  <div class="ph">Editor ABC <span class="sp"></span>
+   <label>Tamaño <input type="range" id="zs" min="0.6" max="2.5" step="0.1" value="1" style="width:90px"></label><button id="as" title="Detener">■</button><button id="ap" title="Reproducir (Ctrl+Alt+Z)">▶</button><button id="aq" title="Pausa">❚❚</button>
+  </div>
+  <textarea id="abc" spellcheck="false" aria-label="Notación ABC"></textarea>
+  <div id="paper"></div>
+ </div>
+</main>
+
+<dialog id="help"><div class="bar" style="margin-bottom:10px"><b>Atajos: Ctrl + Alt + letra</b><span class="sp"></span><button id="hc">Cerrar</button></div><div id="keys"></div></dialog>
+
+<script src="https://cdn.jsdelivr.net/npm/ace-builds@1.32.9/src-min-noconflict/ace.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/abcjs@6.4.4/dist/abcjs-basic-min.js"></script>
+<script>
+const $=s=>document.querySelector(s),BS=256,SPEEDS=[.25,.5,.75,1,1.25,1.5,2];
+const au=new Audio();au.preservesPitch=au.mozPreservesPitch=au.webkitPreservesPitch=true;au.preload='auto';
+au.onerror=()=>say('El navegador no puede reproducir este archivo (código '+(au.error?au.error.code:'?')+').');
+au.onloadedmetadata=()=>au.playbackRate=+$('#sp').value;
+const cv=$('#wf'),cx=cv.getContext('2d');
+let buf=null,mn,mx,nb=0,pps=100,off=0,A=null,B=null,loop=false,marks=[],drag=null,decCtx=null;
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const dur=()=>buf?buf.duration:0;let fname='';
+const fmt=t=>{const m=Math.floor(t/60),s=t-m*60;return String(m).padStart(2,'0')+':'+s.toFixed(3).padStart(6,'0')};
+const say=t=>$('#msg').textContent=t;
+const store=(k,v)=>{try{v===undefined?0:localStorage.setItem(k,v);return localStorage.getItem(k)}catch(e){return null}};
+
+/* ---------- Carga ---------- */
+async function load(f){
+ if(!f)return;say('Decodificando «'+f.name+'»…');
+ try{
+  decCtx=decCtx||new(window.AudioContext||window.webkitAudioContext)();
+  buf=await decCtx.decodeAudioData(await f.arrayBuffer());
+ }catch(e){buf=null;say('No se pudo decodificar este archivo con el navegador.');return}
+ au.src=URL.createObjectURL(f);au.playbackRate=+$('#sp').value;
+ nb=Math.ceil(buf.length/BS);mn=new Float32Array(nb);mx=new Float32Array(nb);
+ for(let c=0;c<buf.numberOfChannels;c++){const d=buf.getChannelData(c);
+  for(let i=0;i<nb;i++){let lo=1,hi=-1;const e=Math.min(d.length,(i+1)*BS);
+   for(let j=i*BS;j<e;j++){const v=d[j];if(v<lo)lo=v;if(v>hi)hi=v}
+   if(c==0||lo<mn[i])mn[i]=lo;if(c==0||hi>mx[i])mx[i]=hi}}
+ A=B=null;loop=false;marks=[];renderMarks();fname=f.name.replace(/\.[^.]+$/,'');off=0;fit();$('#fn').textContent=f.name+' · '+fmt(buf.duration);say('Listo.');
+}
+$('#bo').onclick=()=>$('#fi').click();
+$('#fi').onchange=e=>load(e.target.files[0]);
+addEventListener('dragover',e=>e.preventDefault());
+addEventListener('drop',e=>{e.preventDefault();load(e.dataTransfer.files[0])});
+
+/* ---------- Transporte ---------- */
+const seek=t=>{if(buf)au.currentTime=clamp(t,0,dur())};
+const toggle=()=>{if(!buf)return say('Abre un audio primero.');au.paused?au.play().then(()=>say('Reproduciendo')).catch(e=>say('No se pudo reproducir: '+e.message)):au.pause()};
+const stop=()=>{au.pause();seek(A!=null&&loop?A:0)};
+const step=()=>+$('#st').value||2;
+const setSpeed=i=>{i=clamp(i,0,SPEEDS.length-1);au.playbackRate=SPEEDS[i];$('#sp').value=SPEEDS[i];say('Velocidad '+SPEEDS[i]+'×')};
+const spIdx=()=>SPEEDS.indexOf(+$('#sp').value);
+SPEEDS.forEach(s=>$('#sp').add(new Option(s+'×',s)));$('#sp').value=1;
+$('#sp').onchange=e=>au.playbackRate=+e.target.value;
+$('#vo').oninput=e=>au.volume=+e.target.value;
+const fixA=()=>{if(!buf)return;A=au.currentTime;if(B!=null&&B<=A)B=null;say('A = '+fmt(A))};
+const fixB=()=>{if(!buf)return;B=au.currentTime;if(A!=null&&A>=B)A=null;say('B = '+fmt(B))};
+const clearLoop=()=>{A=B=null;loop=false;say('Loop borrado')};
+const toggleLoop=()=>{if(A==null||B==null)return say('Define primero A y B (arrastra sobre la onda).');loop=!loop;say(loop?'Loop activado':'Loop desactivado')};
+const mark=()=>{if(!buf)return;marks.push({t:au.currentTime,l:''});renderMarks(true);say('Marca en '+fmt(au.currentTime)+' · escribe una etiqueta (Enter para terminar)')};
+const delLast=()=>{if(!marks.length)return say('No hay marcas');const m=marks.pop();renderMarks();say('Marca borrada: '+fmt(m.t))};
+const delAll=()=>{if(!marks.length)return;if(marks.length>1&&!confirm('¿Borrar las '+marks.length+' marcas?'))return;marks=[];renderMarks();say('Marcas borradas')};
+function renderMarks(focus){const ml=$('#ml');ml.innerHTML='';
+ marks.forEach((m,i)=>{const s=document.createElement('span'),a=document.createElement('a'),inp=document.createElement('input'),x=document.createElement('button');
+  a.textContent=fmt(m.t).slice(0,9);a.title='Ir a la marca';a.onclick=()=>{seek(m.t);view(m.t)};
+  inp.value=m.l;inp.placeholder='etiqueta';inp.oninput=()=>m.l=inp.value;inp.onkeydown=e=>{if(e.key==='Enter'||e.key==='Escape')inp.blur()};
+  x.textContent='×';x.title='Borrar esta marca';x.onclick=()=>{marks.splice(i,1);renderMarks()};
+  s.append(a,inp,x);ml.append(s);if(focus&&i==marks.length-1)inp.focus()})}
+const marksToNotes=()=>{if(!marks.length)return say('No hay marcas');ed.insert([...marks].sort((a,b)=>a.t-b.t).map(m=>'- ['+fmt(m.t)+'] '+m.l).join('\n')+'\n');ed.focus()};
+const download=()=>{const b=new Blob([ed.getValue()],{type:'text/markdown;charset=utf-8'}),a=document.createElement('a');
+ a.href=URL.createObjectURL(b);a.download=fname?fname+'-notas.md':'notas.md';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500);say('Descargado: '+a.download)};
+const nextMark=d=>{const t=au.currentTime,e=.05,q=marks.map(x=>x.t).sort((a,b)=>a-b);const m=d>0?q.find(x=>x>t+e):[...q].reverse().find(x=>x<t-e);m!=null?(seek(m),view(m)):say('No hay más marcas')};
+const insTs=()=>{ed.insert('['+fmt(au.currentTime)+'] ');ed.focus()};
+const vol=d=>{au.volume=clamp(au.volume+d,0,1);$('#vo').value=au.volume};
+const view=t=>{const w=cv.clientWidth;if(t<off||t>off+w/pps)off=t-.1*w/pps};
+$('#bp').onclick=toggle;$('#bs').onclick=stop;
+$('#bb').onclick=()=>seek(au.currentTime-step());$('#bf').onclick=()=>seek(au.currentTime+step());
+$('#sa').onclick=fixA;$('#sb').onclick=fixB;$('#lp').onclick=toggleLoop;$('#cl').onclick=clearLoop;$('#mk').onclick=mark;$('#bt').onclick=insTs;$('#mu').onclick=delLast;$('#ma').onclick=delAll;$('#bm').onclick=marksToNotes;$('#bd').onclick=download;
+$('#ia').onchange=e=>{A=e.target.value===''?null:+e.target.value/1000};
+$('#ib').onchange=e=>{B=e.target.value===''?null:+e.target.value/1000};
+
+/* ---------- Zoom / pan ---------- */
+function fit(){if(buf){pps=cv.clientWidth/dur();off=0}}
+function zoom(f,px){if(!buf)return;px=px??cv.clientWidth/2;const t=off+px/pps;
+ pps=clamp(pps*f,cv.clientWidth/dur(),4000);off=t-px/pps}
+$('#zi').onclick=()=>zoom(1.5);$('#zo').onclick=()=>zoom(1/1.5);$('#zf').onclick=fit;
+$('#pan').oninput=e=>{const r=Math.max(0,dur()-cv.clientWidth/pps);off=e.target.value/1000*r};
+cv.addEventListener('wheel',e=>{e.preventDefault();if(e.ctrlKey||e.metaKey)zoom(e.deltaY<0?1.25:.8,e.offsetX);else off+=(e.deltaY+e.deltaX)/pps},{passive:false});
+const px2t=x=>clamp(off+x/pps,0,dur());
+cv.onpointerdown=e=>{if(!buf)return;cv.setPointerCapture(e.pointerId);drag={x:e.offsetX,t:px2t(e.offsetX),m:false}};
+cv.onpointermove=e=>{if(!drag)return;if(Math.abs(e.offsetX-drag.x)>4)drag.m=true;
+ if(drag.m){const t=px2t(e.offsetX);A=Math.min(drag.t,t);B=Math.max(drag.t,t)}};
+cv.onpointerup=()=>{if(drag){drag.m?(loop=true,say('Loop '+fmt(A)+' → '+fmt(B))):seek(drag.t)}drag=null};
+
+/* ---------- Dibujo ---------- */
+function draw(){
+ const d=devicePixelRatio||1,w=cv.clientWidth,h=cv.clientHeight;
+ if(cv.width!==Math.round(w*d)||cv.height!==Math.round(h*d)){cv.width=w*d;cv.height=h*d}
+ cx.setTransform(d,0,0,d,0,0);cx.clearRect(0,0,w,h);
+ if(!buf){cx.fillStyle='#778';cx.font='15px system-ui';cx.textAlign='center';cx.fillText('Arrastra un audio aquí o pulsa «Abrir audio» (Ctrl+Alt+O)',w/2,h/2);return}
+ const D=dur(),sr=buf.sampleRate,top=18,mid=top+(h-top)/2,amp=(h-top)/2-3;
+ off=clamp(off,0,Math.max(0,D-w/pps));
+ const X=t=>(t-off)*pps;
+ if(A!=null&&B!=null){cx.fillStyle='rgba(245,166,35,.2)';cx.fillRect(X(A),top,X(B)-X(A),h-top)}
+ cx.fillStyle='#5fb3d9';
+ for(let x=0;x<w;x++){const t0=off+x/pps;if(t0>D)break;
+  const i0=Math.floor(t0*sr/BS),i1=Math.max(i0+1,Math.ceil((t0+1/pps)*sr/BS));let lo=1,hi=-1;
+  for(let i=i0;i<i1&&i<nb;i++){if(mn[i]<lo)lo=mn[i];if(mx[i]>hi)hi=mx[i]}
+  if(hi>=lo)cx.fillRect(x,mid-hi*amp,1,Math.max(1,(hi-lo)*amp))}
+ cx.fillStyle='#8791a7';cx.strokeStyle='#2a3140';cx.font='11px ui-monospace,monospace';cx.textAlign='left';
+ const stp=[.01,.05,.1,.5,1,2,5,10,30,60,300].find(s=>s*pps>=90)||600;
+ for(let t=Math.ceil(off/stp)*stp;X(t)<w;t+=stp){const x=Math.round(X(t))+.5;cx.beginPath();cx.moveTo(x,top-4);cx.lineTo(x,h);cx.stroke();cx.fillText(fmt(t).slice(0,stp<1?9:5),x+3,11)}
+ cx.strokeStyle=cx.fillStyle='#f5d76e';marks.forEach(m=>{const x=X(m.t);cx.beginPath();cx.moveTo(x,0);cx.lineTo(x,h);cx.stroke();if(m.l)cx.fillText(m.l,x+4,h-6)});
+ cx.strokeStyle='#f5a623';cx.lineWidth=2;[A,B].forEach(v=>{if(v!=null){const x=X(v);cx.beginPath();cx.moveTo(x,top);cx.lineTo(x,h);cx.stroke()}});
+ cx.strokeStyle='#e5707e';const px=X(au.currentTime);cx.beginPath();cx.moveTo(px,0);cx.lineTo(px,h);cx.stroke();cx.lineWidth=1;
+}
+function tick(){
+ if(buf){
+  if(loop&&A!=null&&B!=null&&!au.paused&&au.currentTime>=B)au.currentTime=A;
+  if(!au.paused&&!drag){const x=(au.currentTime-off)*pps;if(x>cv.clientWidth-10||x<0)off=au.currentTime-.05*cv.clientWidth/pps}
+ }
+ draw();
+ $('#tm').textContent=fmt(au.currentTime||0);
+ $('#bp').textContent=au.paused?'▶ Play':'⏸ Pausa';$('#lp').classList.toggle('on',loop);
+ const ae=document.activeElement;
+ if(ae.id!='ia')$('#ia').value=A==null?'':Math.round(A*1000);
+ if(ae.id!='ib')$('#ib').value=B==null?'':Math.round(B*1000);
+ if(buf&&ae.id!='pan'){const r=dur()-cv.clientWidth/pps;$('#pan').value=r>0?off/r*1000:0}
+ requestAnimationFrame(tick);
+}
+
+/* ---------- Atajos Ctrl+Alt+Letra ---------- */
+const ACT={
+A:['Fijar A en el cabezal',fixA],B:['Fijar B en el cabezal',fixB],C:['Borrar loop',clearLoop],
+D:['Velocidad −',()=>setSpeed(spIdx()-1)],E:['Velocidad +',()=>setSpeed(spIdx()+1)],
+F:['Avanzar X s',()=>seek(au.currentTime+step())],G:['Ir a A',()=>A!=null&&seek(A)],
+H:['Ayuda de atajos',()=>toggleHelp()],I:['Insertar marca de tiempo en notas',insTs],
+J:['Ir a B',()=>B!=null&&seek(B)],K:['Marcar punto de interés',mark],L:['Loop activar / desactivar',toggleLoop],
+M:['Silenciar / activar sonido',()=>{au.muted=!au.muted;say(au.muted?'Silenciado':'Sonido activado')}],
+N:['Marca siguiente',()=>nextMark(1)],O:['Abrir archivo de audio',()=>$('#fi').click()],
+P:['Play / Pausa',toggle],Q:['Marca anterior',()=>nextMark(-1)],R:['Retroceder X s',()=>seek(au.currentTime-step())],
+S:['Stop',stop],T:['Alternar panel Notas / ABC',()=>showPane($('#pn').classList.contains('on')&&innerWidth<=860?'pa':'pn',true)],
+U:['Volumen +',()=>vol(.1)],V:['Volumen −',()=>vol(-.1)],W:['Zoom +',()=>zoom(1.5)],X:['Zoom −',()=>zoom(1/1.5)],
+Y:['Ver toda la onda',fit],Z:['Reproducir / detener ABC',()=>synthOn?abcStop():abcPlay()]};
+const help=$('#help');
+function toggleHelp(){help.open?help.close():help.showModal()}
+$('#keys').innerHTML=Object.entries(ACT).map(([k,v])=>`<button data-k="${k}"><kbd>${k}</kbd>${v[0]}</button>`).join('');
+$('#keys').onclick=e=>{const b=e.target.closest('button');if(b){help.close();ACT[b.dataset.k][1]()}};
+$('#bh').onclick=toggleHelp;$('#hc').onclick=()=>help.close();
+addEventListener('keydown',e=>{
+ if(e.ctrlKey&&e.altKey&&e.code==='Backspace'){e.preventDefault();delLast();return}
+ if(e.ctrlKey&&e.altKey&&/^Key[A-Z]$/.test(e.code)){e.preventDefault();e.stopPropagation();ACT[e.code[3]][1]();return}
+ const a=document.activeElement,typing=/INPUT|TEXTAREA/.test(a.tagName);
+ if(e.key==='F1'||(e.key==='?'&&!typing)){e.preventDefault();toggleHelp()}
+},true);
+
+/* ---------- Paneles (móvil) ---------- */
+function showPane(id,f){document.querySelectorAll('.pane').forEach(p=>p.classList.toggle('on',p.id==id));
+ document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.p==id));ed&&ed.resize();if(id=='pa')renderAbc()}
+document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>showPane(b.dataset.p));
+
+/* ---------- ACE Markdown ---------- */
+ace.config.set('basePath','https://cdn.jsdelivr.net/npm/ace-builds@1.32.9/src-min-noconflict/');
+const ed=ace.edit('ed',{mode:'ace/mode/markdown',theme:'ace/theme/monokai',wrap:true,fontSize:14,showPrintMargin:false,useSoftTabs:true});
+ed.setValue(store('tr_md')||'# Notas de transcripción\n\n- Tonalidad:\n- Compás:\n\n','' );ed.clearSelection();
+ed.session.on('change',()=>store('tr_md',ed.getValue()));
+
+/* ---------- ABC ---------- */
+const abcEl=$('#abc');
+abcEl.value=store('tr_abc')||'X:1\nT:Ejemplo\nM:4/4\nL:1/8\nQ:1/4=100\nK:C\n|:CDEF GABc|c2 G2 E2 C2:|\n';
+let vo=null,synth=null,actx=null,synthOn=false,paused=false;
+function renderAbc(){store('tr_abc',abcEl.value);store('tr_zs',$('#zs').value);const k=+$('#zs').value||1,w=$('#paper').clientWidth;
+ try{vo=ABCJS.renderAbc('paper',abcEl.value,{scale:k,staffwidth:Math.max(240,(w-16)/k),add_classes:true})[0]}catch(e){}}
+$('#zs').oninput=renderAbc;
+abcEl.oninput=renderAbc;
+async function abcPlay(){
+ if(paused&&actx){await actx.resume();paused=false;return}
+ abcStop();
+ if(!ABCJS.synth.supportsAudio())return say('Este navegador no permite audio ABC.');
+ say('Cargando sonidos ABC…');
+ try{actx=actx||new(window.AudioContext||window.webkitAudioContext)();await actx.resume();
+  synth=new ABCJS.synth.CreateSynth();await synth.init({visualObj:vo,audioContext:actx});await synth.prime();synth.start();synthOn=true;say('Reproduciendo ABC')}
+ catch(e){say('No se pudo reproducir el ABC (¿sin conexión para los sonidos?).')}
+}
+function abcStop(){try{synth&&synth.stop()}catch(e){}synthOn=false;if(paused&&actx)actx.resume();paused=false}
+function abcPause(){if(actx&&synthOn){actx.suspend();paused=true}}
+$('#ap').onclick=abcPlay;$('#as').onclick=abcStop;$('#aq').onclick=abcPause;
+$('#zs').value=store('tr_zs')||1;renderAbc();
+
+addEventListener('resize',()=>{ed.resize();renderAbc()});
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>
