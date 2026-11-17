@@ -4,7 +4,6 @@
 habla_Escribe [habla_Escribe](https://bruveping.github.io/pruebas_pagina_web_2026/habla_Escribe/) <br>
 https://bruveping.github.io/pruebas_pagina_web_2026/habla_Escribe/
 
-
 ## estudio De Acordes
 estudioDeAcordes [estudioDeAcordes](https://bruveping.github.io/pruebas_pagina_web_2026/estudioDeAcordes/) <br>
 https://bruveping.github.io/pruebas_pagina_web_2026/estudioDeAcordes/
@@ -16,4 +15,9 @@ https://bruveping.github.io/pruebas_pagina_web_2026/Tonnetz/
 ## progresiones_esquemas_acordes
 progresiones_esquemas_acordes [progresiones_esquemas_acordes](https://bruveping.github.io/pruebas_pagina_web_2026/progresiones_esquemas_acordes/) <br>
 https://bruveping.github.io/pruebas_pagina_web_2026/progresiones_esquemas_acordes/
+
+## Herramienta_transcripción_musical
+Herramienta_transcripción_musical [Herramienta_transcripción_musical](https://bruveping.github.io/pruebas_pagina_web_2026/Herramienta_transcripción_musical/) <br>
+https://bruveping.github.io/pruebas_pagina_web_2026/Herramienta_transcripción_musical/
+
 
