@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visor de Código Strudel.cc</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: {
+                            bg: '#0f172a',
+                            card: '#1e293b',
+                            border: '#334155',
+                            code: '#090d16'
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
+                        sans: ['Inter', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Highlight.js Dark Theme & Core -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Custom scrollbars */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+        .code-pre pre {
+            background: transparent !important;
+            margin: 0 !important;
+            padding: 1.25rem !important;
+        }
+    </style>
+</head>
+<body class="bg-dark-bg text-slate-100 font-sans min-h-screen flex flex-col selection:bg-indigo-500 selection:text-white">
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-20 opacity-0 transition-all duration-300 bg-emerald-600 text-white px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 font-medium text-sm">
+        <i class="fa-solid fa-circle-check text-lg"></i>
+        <span id="toast-message">¡Copiado al portapapeles!</span>
+    </div>
+
+    <!-- Header -->
+    <header class="border-b border-dark-border bg-dark-card/50 backdrop-blur sticky top-0 z-30 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                <i class="fa-solid fa-music text-white text-lg"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-lg tracking-tight bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">Strudel Code Viewer</h1>
+                <p class="text-xs text-slate-400">Visor y gestor de patrones algorítmicos</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-3 w-full sm:w-auto justify-end">
+            <!-- Drop & File Button trigger -->
+            <input type="file" id="jsonFileInput" accept=".json" class="hidden">
+            <button onclick="document.getElementById('jsonFileInput').click()" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 px-4 py-2 rounded-xl text-sm font-medium transition shadow-sm">
+                <i class="fa-solid fa-folder-open text-indigo-400"></i>
+                <span>Cargar JSON</span>
+            </button>
+            <button id="loadDefaultBtn" onclick="loadDefaultPatterns()" class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-sm font-medium transition shadow-lg shadow-indigo-600/20">
+                <i class="fa-solid fa-rotate-right"></i>
+                <span>Patrones por Defecto</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="flex-1 flex flex-col lg:flex-row overflow-hidden h-[calc(100vh-74px)]">
+        
+        <!-- Left Sidebar: Pattern List & Dropzone -->
+        <aside class="w-full lg:w-80 border-r border-dark-border bg-dark-card/30 flex flex-col h-full">
+            
+            <!-- Drag & Drop Zone Box -->
+            <div id="drop-zone" class="p-4 border-b border-dark-border bg-indigo-950/20 text-center relative transition hover:bg-indigo-900/20">
+                <div class="border-2 border-dashed border-indigo-500/40 rounded-xl p-4 flex flex-col items-center justify-center gap-2 cursor-pointer">
+                    <i class="fa-solid fa-cloud-arrow-down text-indigo-400 text-2xl animate-bounce"></i>
+                    <p class="text-xs text-slate-300 font-medium">Arrastra y suelta tu archivo <code class="text-indigo-300 font-mono">.json</code> aquí</p>
+                    <span class="text-[10px] text-slate-500">o usa el botón superior</span>
+                </div>
+            </div>
+
+            <!-- Search & Filter -->
+            <div class="p-4 border-b border-dark-border">
+                <div class="relative">
+                    <i class="fa-solid fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                    <input type="text" id="searchInput" placeholder="Buscar por título, autor o contenido..." class="w-full bg-dark-code border border-dark-border rounded-xl pl-10 pr-4 py-2.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition">
+                </div>
+                <div class="flex items-center justify-between mt-3 text-xs text-slate-400 px-1">
+                    <span id="patternCount">0 patrones</span>
+                    <span id="activeSource" class="text-indigo-400 font-medium">Dataset integrado</span>
+                </div>
+            </div>
+
+            <!-- List of Patterns -->
+            <div id="patternList" class="flex-1 overflow-y-auto divide-y divide-dark-border/50">
+                <!-- Dynamically populated -->
+            </div>
+        </aside>
+
+        <!-- Right Content: Code Viewer -->
+        <section class="flex-1 flex flex-col bg-dark-bg overflow-hidden">
+            
+            <!-- Viewer Header / Toolbar -->
+            <div class="bg-dark-card border-b border-dark-border px-6 py-3 flex items-center justify-between gap-4 flex-wrap">
+                <div class="flex items-center gap-3">
+                    <div class="flex gap-1.5">
+                        <div class="w-3 h-3 rounded-full bg-rose-500/80"></div>
+                        <div class="w-3 h-3 rounded-full bg-amber-500/80"></div>
+                        <div class="w-3 h-3 rounded-full bg-emerald-500/80"></div>
+                    </div>
+                    <span id="currentTitle" class="text-sm font-semibold text-slate-200 font-mono tracking-wide truncate max-w-md">Selecciona un patrón</span>
+                    <span id="currentId" class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded-md font-mono hidden sm:inline-block"></span>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <button id="copyBtn" onclick="copyCode()" disabled class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-600 text-white px-4 py-2 rounded-xl text-xs font-medium transition shadow-sm cursor-pointer disabled:cursor-not-allowed">
+                        <i class="fa-regular fa-copy"></i>
+                        <span>Copiar Código</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Code Editor Box -->
+            <div class="flex-1 overflow-y-auto code-pre bg-[#0d1117] relative">
+                <div id="emptyState" class="absolute inset-0 flex flex-col items-center justify-center text-slate-500 gap-3 p-6 text-center">
+                    <i class="fa-solid fa-code text-4xl text-slate-600"></i>
+                    <p class="text-sm">Selecciona un patrón de la lista de la izquierda o arrastra un archivo JSON para visualizar el código con resaltado de sintaxis.</p>
+                </div>
+                <pre><code id="codeOutput" class="language-javascript text-xs sm:text-sm font-mono leading-relaxed"></code></pre>
+            </div>
+
+            <!-- Footer Meta Info -->
+            <div class="bg-dark-card border-t border-dark-border px-6 py-2.5 flex items-center justify-between text-xs text-slate-400">
+                <div class="flex items-center gap-4">
+                    <span id="metaDate"><i class="fa-regular fa-clock mr-1.5"></i>Fecha: --</span>
+                    <span id="metaLength"><i class="fa-solid fa-file-lines mr-1.5"></i>Líneas: 0</span>
+                </div>
+                <span class="text-slate-500 font-mono text-[11px]">Strudel.cc JS Pattern Visualizer</span>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Embedded Initial Dataset (strudel_patterns_2025-06-13.json) -->
+    <script>
+        const defaultDataset = {
+            "Ca_D6OzB7Pzf":{"code":"//@by Ángel Jara\n//@title llegar primero escapar más rápido 2024\nsamples('github:bruveping/RepositorioDesonidosParaExperimentar02')\nsetcps(108/60/4)\nstack(\n  // s(\"bd*2,[- sd]*2,[- hh]*4, <-!7 oh>, <-!28 bd*4 bd*8 bd*16!2>\").bank(\"RolandTR909\").gain(0.75),\n  n(\"<[-!4 0 20 <30 [4 7 25 41]> 44] [-!4 0 [5 10] 15 22] [0] [0]>\").s(\"todo\")\n  .chop(\"<8 16 16 32>\")\n  .lpf(\"600!<3 2 7 12> [2000 5000 800 300]\")\n  .legato(\"0.25 0.5 0.9 0.7\")\n  .degradeBy(0.5).slow(\"1\")\n  .echo(5,1/6,0.3)\n  .gain(0.4),\n //  n(\"<1 [7 1]> [2 7] 3 [<5 [6 2]> 8]\").add(n(-12))\n //  .chord(\"<C^7 Cm7 C7 Db^7>\")\n //    .mode(\"above\")\n //    .voicing()\n //  .s(\"square\").legato(0.5)\n //  .cutoff(\"<2000!12 [[500 200 1500 600] [2000 [20000 800]]]!4>\")\n // .resonance(\"<0!12 [[0 [15 40 10 25] 0] [20 11 45 30 49]]!4>\").gain(1.5).echo(5,1/6,0.5),\n //    n(\"[1 1,2*3,3,4]\")\n //  .chord(\"<C^7 Cm7 C7 Db^7>\")\n //    .mode(\"above\")\n //    .voicing()\n //  .s(\"sine\").legato(0.5),\n  // note(\"<C2(3,8)!3 Db2(3,8)>\").s(\"sawtooth\").legato(0.25).gain(1.7)\n)\n.scope()","created_at":1715293732920,"id":"Ca_D6OzB7Pzf","collection":"user"},
+            "UdTi0demdosc":{"code":"//@by Ángel Jara\n//@No por mucho madrugar, ¡acido!!! 2024 05 11\n\n// let esto = 0;\nsamples('github:bruveping/RepositorioDesonidosParaExperimentar02')\nlet unRiff01 = \"[e1!3 g1] [e1!2 e2 e3] [a1 g1 fs1 f1] [e1!2 e2 f1]\"\nlet unRiff02 = \"[a1!3 c1] [a1!2 e2 e3] [e1 c1 fs1 f1] [e1!2 e2 f1]\"\nlet unRiff03 = \"[b1!3 b1] [b1!2 e2 e3] [b1 b1 fs1 b1] [b1!2 e2 b1]\"\nlet unRiff04 = \"[b1!3 b1] [b1!2 e2 b13] [a1 a1 gs1 gs1] [g1!2 fs2 f1]\"\nlet unRiff05 = \"[g1 gs1 a1 a1]*4\"\nlet unRiff06 = \"[as1 a1 gs1 g1][as1 gs1 a1 gs1][g1 gs1 g1 fs1][f1 e1 <e1!2 e2 e3> e1]\"\nstack\n(\ns(\"bd*2,sd(2,4,1),hh:0:0.5(8,16,1), oh(4,8,1), <-!7 [- [sd(5,8,<0 1 2 3 4>)]]>\"),\n  n(run(8))\n  .add(n(\"<0 5 36 25>\"))\n  // .add(n(\"30\"))\n  .s(\"todo\").legato(0.125).off(1/16,x=>x.speed(\"<1 4 3 8>\"))\n  .every(4, x=>x.rev()),\n  note(unRiff01)\n  .s(\"gm_lead_8_bass_lead\").legato(0.5).gain(2)\n  // .lpf(\"400 600 3000 <1200!7 6000>\")\n  // .lpq(\"10 20 25 <8!7 45>\")\n    .lpf(rand.range(200,\"<3000!7 5000>\").slow(4))\n  .lpq(rand.range(0,\"<15!7 [20 12 35 48]>\").slow(4))  \n  //     .lpf(slider(1400,200,5000,10))\n  // .lpq(slider (37,0,50,1))  \n)\n// .scope()","created_at":1715478439333,"id":"UdTi0demdosc","collection":"user"},
+            "yk_0LmyrUSKs":{"code":"//@by Ángel Jara\n//@title llegar primero escapar más rápido 2024\ns(\"<bd!3 [[bd:0:1 bd:0:0.5] -]>*2,sd(2,4,1),<hh:0:0.3!3 hh:0:1 hh:0:0.3!2>*24\")\n","created_at":1715600968454,"id":"yk_0LmyrUSKs","collection":"user"},
+            "NdU6I7qX65vF":{"code":"//@by Ángel Jara\n//@title Una base y una baterìa 2024 05 13\nsetcps(130/60/4)\nstack(\nnote(\"[[e2@3 as2][b2 fs2 <g2 g2*2> a2][d3 fs2 <g2 g2*2> b2][f2 fs2 a2 f2]]/2\")\n  .add(note(-12))\n  .s(\"gm_synth_bass_2\")\n  .legato(.25)\n  .lpf(rand.range(400,4500))\n  .lpq(rand.range(0,40))\n  .lpenv(4)\n  .lpa(0.25)\n.lpr(\"0.125\")\n  .delay(\"0.2:1/6:0.2\")\n  .room(0.3)\n  .gain(1.0),\ns(\"<bd!3 [[bd:0:1 bd:0:0.5] -]>*2,sd(2,4,1),<hh:0:0.3!3 hh:0:1 hh:0:0.3!2>*24\")\n  .lpf(perlin.range(900,4500).slow(4))\n  )\n","created_at":1715602084807,"id":"NdU6I7qX65vF","collection":"user"},
+            "VWIcDEAxwTNt":{"code":"//\"vienen y son muchos, una multitud\" @by Ángel Jara\nsetcps(123/60/4)\nsamples({ loopAmen02: 'https://cdn.freesound.org/previews/736/736476_16019844-hq.mp3' })\nstack(\n  s(\"loopAmen02\").fit().chop(16).color(\"#939\"),\n  note(irand(16).segment(32).scale(\"C3:ionian A3:aeolian Ab3:lydian  G3:altered\"))\n   .degradeBy(0.4)\n  .ribbon(\"<566546!3 456>\", 16) \n  .slow(4)\n  .distort(1.8)\n  .lpf(800)\n  .s(\"sawtooth\").room(0.5)\n    .legato(1.3).color(\"#00f\"),\n  note(\"g6!4 gs6!4\").s(\"sine\").legato(0.5).ply(8)\n  .mask(\"[<[0 1] [1 0]!3> <[1 0] [0 1] [1 0]!2> <[1 0]!2 [0 1] [1 0]> <[1 0]!3 [0 1]>]*8\")\n   .slow(4)\n  .color(\"#f00\"),\n     note(\"[c3, g3, b3, e4]  [a2, g3, c4, e4] [gs2, g3, c4, ds4] [d3, gs3, b3, f4]\")\n  .s(\"square\")\n    .ply(8)\n  .mask(\"[0 1 1 1 0 1 1 0]*4\").legato(\"[0.5 0.5!4 1 0]*4\")\n  .slow(4)\n  .color(\"#0ff\")\n,\n  note(\"c1 a1 gs1 d1\").ply(8).s(\"sawtooth\").legato(0.5).distort(3.5).slow(4)\n  .lpf(1200)\n  .lpq(15).color(\"#ff9\")\n).pianoroll()\n","created_at":1718666547557,"id":"VWIcDEAxwTNt","collection":"user"},
+            "FzjlfJxXkn9N":{"code":"//@title \"monopatín sideral\"\n//@by \"Ángel Jara\"\nsetcps(123/60/4)\n\nlaBateria:\nstack(\ns(\"bd*2 , sd(2,4,1), hh*8\")._pianoroll(),\ns(\"<-@7 [- - [sd:0:0.5(5,8,<0!2 1!2>)]@2]>\")\n  .color(\"#f00\")\n  ._pianoroll(),\ns(\"oh*16\").gain(rand.range(0,0.7)).legato(0.25).mask(\"[0 1 0 0] [1 0 1 1]\")\n  .color(\"#f0f\")\n  ._pianoroll())\n\nelBajo:\nnote(\"e2(3,8) b1(3,8) d2(3,8) [[g1*2 a1*2] d2*2]\").s(\"sawtooth\").slow(4).legato(\"0.9\")\n\nelAcorde:\nnote(\"[e3, g3, b3, d3](3,8,1) [b3, d3, fs3, a3](3,8,1) [d3, fs3, a3, c3](3,8,1) [[[g3, b3, d3, fs3](2,4,1) [a3, c3, e3, g3](2,4,1)] [d3, fs3, a3, c3](2,4,1)]\")\n  .s(\"square\").slow(4).legato(\"0.25\")\n  .color(\"#0ff\")\n  ._pianoroll()\n\nlet laMelodia =\nn(irand(12)).struct(\"x*64\")\n  .scale(\"E3:minor:pentatonic\")\n  .degradeBy(0.5)\n  .ribbon(\"<[<1337!3 25>]!3 [<1377!3 50>]>\", 4)\n  .slow(4)\n  .legato(0.7).s(\"sawtooth\")  \n  .mask(\"0!32 1!96 1!128 \")\n  .color(\"#00f\")\n\nlet elArpegio =\nnote(\"[e4, g4, b4, d4] [b4, d4, fs4, a4] [d4, fs4, a4, c4] [[[g4, b4, d4, fs4] [a4, c4, e4, g4]] [d4, fs4, a4, c4]]\")\n  .s(\"square\")\n  .arp(\"[0 1 2 3 0 1 0 3]*4\")\n  .slow(4).legato(\"0.25\")\n  .color(\"#50d\")\n\nalaMelodia:\narrange([2,silence], [6,laMelodia]\n       , [4,elArpegio], [4,laMelodia])  \n  ._pianoroll()\n","created_at":1722888011812,"id":"FzjlfJxXkn9N","collection":"user"}
+        };
+
+        let currentPatterns = {};
+        let activePatternId = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadDefaultPatterns();
+            setupDragAndDrop();
+            setupSearch();
+            setupFileInput();
+        });
+
+        function loadDefaultPatterns() {
+            currentPatterns = defaultDataset;
+            document.getElementById('activeSource').textContent = 'Dataset integrado (Strudel)';
+            renderPatternList(currentPatterns);
+            showToast('Patrones por defecto cargados', 'emerald');
+            
+            // Select first pattern by default
+            const firstKey = Object.keys(currentPatterns)[0];
+            if (firstKey) selectPattern(firstKey);
+        }
+
+        function setupFileInput() {
+            const fileInput = document.getElementById('jsonFileInput');
+            fileInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) parseJSONFile(file);
+            });
+        }
+
+        function setupDragAndDrop() {
+            const dropZone = document.getElementById('drop-zone');
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropZone.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropZone.classList.add('bg-indigo-900/40', 'border-indigo-500');
+                }, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropZone.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dropZone.classList.remove('bg-indigo-900/40', 'border-indigo-500');
+                }, false);
+            });
+
+            dropZone.addEventListener('drop', (e) => {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                if (files.length > 0) {
+                    parseJSONFile(files[0]);
+                }
+            }, false);
+        }
+
+        function parseJSONFile(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const json = JSON.parse(e.target.result);
+                    if (typeof json === 'object' && json !== null) {
+                        currentPatterns = json;
+                        document.getElementById('activeSource').textContent = file.name;
+                        renderPatternList(currentPatterns);
+                        showToast(`¡Archivo "${file.name}" cargado con éxito!`, 'emerald');
+                        
+                        const firstKey = Object.keys(currentPatterns)[0];
+                        if (firstKey) selectPattern(firstKey);
+                    } else {
+                        showToast('El formato JSON no es válido', 'rose');
+                    }
+                } catch (err) {
+                    console.error(err);
+                    showToast('Error al parsear el archivo JSON', 'rose');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function setupSearch() {
+            const searchInput = document.getElementById('searchInput');
+            searchInput.addEventListener('input', (e) => {
+                const term = e.target.value.toLowerCase();
+                const filtered = {};
+                for (const [id, item] of Object.entries(currentPatterns)) {
+                    const code = (item.code || '').toLowerCase();
+                    if (id.toLowerCase().includes(term) || code.includes(term)) {
+                        filtered[id] = item;
+                    }
+                }
+                renderPatternList(filtered);
+            });
+        }
+
+        function renderPatternList(patterns) {
+            const listContainer = document.getElementById('patternList');
+            listContainer.innerHTML = '';
+            
+            const keys = Object.keys(patterns);
+            document.getElementById('patternCount').textContent = `${keys.length} patrones`;
+
+            if (keys.length === 0) {
+                listContainer.innerHTML = `<div class="p-6 text-center text-xs text-slate-500">No se encontraron patrones</div>`;
+                return;
+            }
+
+            keys.forEach(id => {
+                const pattern = patterns[id];
+                const codeSnippet = pattern.code || '';
+                
+                // Extract title or first line as preview
+                let title = `Patrón ${id}`;
+                const titleMatch = codeSnippet.match(/\/\/@title\s+(.*)/) || codeSnippet.match(/\/\/\s*["']([^"']+)["']/) || codeSnippet.match(/\/\/\s*(.*)/);
+                if (titleMatch && titleMatch[1]) {
+                    title = titleMatch[1].trim();
+                } else if (codeSnippet.length > 0) {
+                    title = codeSnippet.split('\n')[0].replace(/\/\//g, '').trim().substring(0, 30) || id;
+                }
+
+                const dateStr = pattern.created_at ? new Date(pattern.created_at).toLocaleDateString() : 'N/A';
+
+                const card = document.createElement('div');
+                card.className = `p-3.5 cursor-pointer transition hover:bg-slate-800/60 border-l-2 ${activePatternId === id ? 'border-indigo-500 bg-indigo-950/30' : 'border-transparent'}`;
+                card.onclick = () => selectPattern(id);
+                card.innerHTML = `
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-xs font-mono font-medium text-indigo-300 truncate">${id}</span>
+                        <span class="text-[10px] text-slate-500">${dateStr}</span>
+                    </div>
+                    <p class="text-xs text-slate-200 font-medium truncate">${escapeHtml(title)}</p>
+                    <p class="text-[11px] text-slate-500 font-mono mt-1 line-clamp-1">${escapeHtml(codeSnippet.substring(0, 50))}...</p>
+                `;
+                card.id = `pattern-card-${id}`;
+                listContainer.appendChild(card);
+            });
+        }
+
+        function selectPattern(id) {
+            activePatternId = id;
+            
+            // Highlight active in sidebar
+            document.querySelectorAll('[id^="pattern-card-"]').forEach(el => {
+                el.classList.remove('border-indigo-500', 'bg-indigo-950/30');
+                el.classList.add('border-transparent');
+            });
+            const activeCard = document.getElementById(`pattern-card-${id}`);
+            if (activeCard) {
+                activeCard.classList.remove('border-transparent');
+                activeCard.classList.add('border-indigo-500', 'bg-indigo-950/30');
+                activeCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+
+            const pattern = currentPatterns[id];
+            if (!pattern) return;
+
+            // Hide empty state
+            document.getElementById('emptyState').classList.add('hidden');
+
+            // Set Header metadata
+            const code = pattern.code || '';
+            let title = `Patrón ${id}`;
+            const titleMatch = code.match(/\/\/@title\s+(.*)/) || code.match(/\/\/\s*["']([^"']+)["']/) || code.match(/\/\/\s*(.*)/);
+            if (titleMatch && titleMatch[1]) {
+                title = titleMatch[1].trim();
+            }
+
+            document.getElementById('currentTitle').textContent = title;
+            document.getElementById('currentId').textContent = id;
+            document.getElementById('metaDate').innerHTML = `<i class="fa-regular fa-clock mr-1.5"></i>${pattern.created_at ? new Date(pattern.created_at).toLocaleString() : 'N/A'}`;
+            
+            const linesCount = code.split('\n').length;
+            document.getElementById('metaLength').innerHTML = `<i class="fa-solid fa-file-lines mr-1.5"></i>Líneas: ${linesCount}`;
+
+            // Render highlighted code
+            const codeOutput = document.getElementById('codeOutput');
+            codeOutput.textContent = code;
+            hljs.highlightElement(codeOutput);
+
+            // Enable copy button
+            document.getElementById('copyBtn').removeAttribute('disabled');
+        }
+
+        function copyCode() {
+            if (!activePatternId || !currentPatterns[activePatternId]) return;
+            const code = currentPatterns[activePatternId].code || '';
+
+            // Fallback for iFrame clipboard restriction using execCommand
+            const textarea = document.createElement('textarea');
+            textarea.value = code;
+            textarea.style.position = 'fixed'; // Avoid scrolling to bottom
+            document.body.appendChild(textarea);
+            textarea.focus();
+            textarea.select();
+
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    showToast('¡Código copiado al portapapeles!', 'emerald');
+                } else {
+                    showToast('No se pudo copiar el código', 'rose');
+                }
+            } catch (err) {
+                console.error('Fallback copy error:', err);
+                showToast('Error al copiar', 'rose');
+            }
+
+            document.body.removeChild(textarea);
+        }
+
+        function showToast(message, type = 'emerald') {
+            const toast = document.getElementById('toast');
+            const msgEl = document.getElementById('toast-message');
+            msgEl.textContent = message;
+
+            toast.className = `fixed bottom-6 right-6 z-50 transform transition-all duration-300 text-white px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 font-medium text-sm ${type === 'emerald' ? 'bg-emerald-600' : 'bg-rose-600'}`;
+            
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+        }
+    </script>
+</body>
+</html>
