@@ -23,7 +23,7 @@ header b{font-weight:650}
 .bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .bar label{color:var(--mu);font-size:12px}
 .sp{flex:1}
-#tm{font-size:18px;min-width:9.5ch;color:var(--bl)}
+#tm{font-size:18px;width:11ch;color:var(--bl);background:#0d1016;padding:2px 6px;cursor:text}
 #wfw{position:relative;height:clamp(130px,26vh,280px);background:#0d1016;border:1px solid var(--ln);border-radius:var(--r)}
 canvas{width:100%;height:100%;display:block;touch-action:none;cursor:crosshair}
 #pan{width:100%}
@@ -76,7 +76,7 @@ kbd{background:#0d1016;border:1px solid var(--ln);border-radius:3px;padding:1px 
   <button id="bs" title="Stop (Ctrl+Alt+S)">■ Stop</button>
   <button id="bf" title="Avanzar (Ctrl+Alt+F)">⏩</button>
   <label>± <input type="number" id="st" value="2" min="0.1" step="0.5" style="width:62px"> s</label>
-  <span id="tm">00:00.000</span>
+  <input id="tm" value="00:00.000" spellcheck="false" autocomplete="off" aria-label="Ir a un tiempo" title="Escribe un tiempo (mm:ss.mmm, h:mm:ss.mmm o segundos) y pulsa Enter">
   <span class="sp"></span>
   <label>Velocidad <select id="sp"></select></label>
   <label>Vol <input type="range" id="vo" min="0" max="1" step="0.01" value="1" style="width:90px"></label>
@@ -86,7 +86,7 @@ kbd{background:#0d1016;border:1px solid var(--ln);border-radius:3px;padding:1px 
   <label>B (ms) <input type="number" id="ib" step="10" min="0"></label>
   <button id="sa">Fijar A</button><button id="sb">Fijar B</button>
   <button id="lp" title="Ctrl+Alt+L">⟲ Loop</button><button id="cl">Borrar loop</button>
-  <button id="mk" title="Ctrl+Alt+K">⚑ Marca</button><button id="mu" title="Borra la última marca creada, una a una (Ctrl+Alt+Retroceso)">⌫ Última marca</button><button id="ma">Borrar todas</button>
+  <button id="mk" title="Ctrl+Alt+K">⚑ Marca</button><button id="mu" title="Borra la última marca creada, una a una (Ctrl+Alt+Retroceso)">⌫ Última marca</button><button id="ma">Borrar todas</button><button id="mj" title="Guarda las marcas y etiquetas en un archivo .json">💾 Guardar marcas</button><button id="mi" title="Carga marcas desde un .json (también puedes arrastrarlo a la página)">📂 Cargar marcas</button><input type="file" id="fj" accept=".json,application/json" hidden>
   <span class="sp"></span>
   <button id="zo" title="Ctrl+Alt+X">−</button><button id="zf" title="Ctrl+Alt+Y">Ver todo</button><button id="zi" title="Ctrl+Alt+W">+</button>
  </div>
@@ -100,7 +100,7 @@ kbd{background:#0d1016;border:1px solid var(--ln);border-radius:3px;padding:1px 
 
 <main id="bottom">
  <div class="pane on" id="pn">
-  <div class="ph">Notas (Markdown) <span class="sp"></span><button id="bt" title="Ctrl+Alt+I">⏱ Marca de tiempo</button><button id="bm" title="Inserta la lista de marcas con sus etiquetas">⚑ Marcas → notas</button><button id="bd">⬇ Descargar .md</button></div>
+  <div class="ph">Notas (Markdown) <span class="sp"></span><button id="bt" title="Ctrl+Alt+I">⏱ Marca de tiempo</button><button id="bm" title="Inserta la lista de marcas con sus etiquetas">⚑ Marcas → notas</button><button id="bd">⬇ Descargar .md</button><button id="bu" title="Carga un archivo .md (también puedes arrastrarlo a la página)">⬆ Cargar .md</button><input type="file" id="fm" accept=".md,.markdown,.txt,text/markdown,text/plain" hidden></div>
   <div id="ed"></div>
  </div>
  <div class="pane" id="pa">
@@ -125,7 +125,7 @@ au.onloadedmetadata=()=>au.playbackRate=+$('#sp').value;
 const cv=$('#wf'),cx=cv.getContext('2d');
 let buf=null,mn,mx,nb=0,pps=100,off=0,A=null,B=null,loop=false,marks=[],drag=null,decCtx=null;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
-const dur=()=>buf?buf.duration:0;let fname='';
+const dur=()=>buf?buf.duration:0;let fname='',pend=null;
 const fmt=t=>{const m=Math.floor(t/60),s=t-m*60;return String(m).padStart(2,'0')+':'+s.toFixed(3).padStart(6,'0')};
 const say=t=>$('#msg').textContent=t;
 const store=(k,v)=>{try{v===undefined?0:localStorage.setItem(k,v);return localStorage.getItem(k)}catch(e){return null}};
@@ -143,12 +143,16 @@ async function load(f){
   for(let i=0;i<nb;i++){let lo=1,hi=-1;const e=Math.min(d.length,(i+1)*BS);
    for(let j=i*BS;j<e;j++){const v=d[j];if(v<lo)lo=v;if(v>hi)hi=v}
    if(c==0||lo<mn[i])mn[i]=lo;if(c==0||hi>mx[i])mx[i]=hi}}
- A=B=null;loop=false;marks=[];renderMarks();fname=f.name.replace(/\.[^.]+$/,'');off=0;fit();$('#fn').textContent=f.name+' · '+fmt(buf.duration);say('Listo.');
+ A=B=null;loop=false;marks=pend||[];pend=null;renderMarks();fname=f.name.replace(/\.[^.]+$/,'');off=0;fit();$('#fn').textContent=f.name+' · '+fmt(buf.duration);say('Listo.');
 }
 $('#bo').onclick=()=>$('#fi').click();
 $('#fi').onchange=e=>load(e.target.files[0]);
 addEventListener('dragover',e=>e.preventDefault());
-addEventListener('drop',e=>{e.preventDefault();load(e.dataTransfer.files[0])});
+const isJson=f=>/\.json$/i.test(f.name)||f.type==='application/json';
+const isMd=f=>/\.(md|markdown|txt)$/i.test(f.name)||f.type==='text/markdown';
+addEventListener('drop',async e=>{e.preventDefault();const fs=[...e.dataTransfer.files];
+ for(const f of fs.filter(f=>!isJson(f)&&!isMd(f)))await load(f);
+ for(const f of fs.filter(isJson))await loadMarks(f);for(const f of fs.filter(isMd))await loadMd(f)});
 
 /* ---------- Transporte ---------- */
 const seek=t=>{if(buf)au.currentTime=clamp(t,0,dur())};
@@ -173,6 +177,22 @@ function renderMarks(focus){const ml=$('#ml');ml.innerHTML='';
   inp.value=m.l;inp.placeholder='etiqueta';inp.oninput=()=>m.l=inp.value;inp.onkeydown=e=>{if(e.key==='Enter'||e.key==='Escape')inp.blur()};
   x.textContent='×';x.title='Borrar esta marca';x.onclick=()=>{marks.splice(i,1);renderMarks()};
   s.append(a,inp,x);ml.append(s);if(focus&&i==marks.length-1)inp.focus()})}
+const dl=(txt,type,name)=>{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:type+';charset=utf-8'}));a.download=name;
+ document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500);say('Descargado: '+name)};
+const saveMarks=()=>{if(!marks.length)return say('No hay marcas que guardar');const tema=fname||'sin-titulo';
+ dl(JSON.stringify({version:1,tema,duracion:+dur().toFixed(3),marcas:marks.map(m=>({tiempo:+m.t.toFixed(3),etiqueta:m.l}))},null,2),'application/json',tema+'-marcas.json')};
+const parseMarks=txt=>{const j=JSON.parse(txt),a=Array.isArray(j)?j:(j.marcas||j.marks||[]);
+ return a.map(m=>({t:+(m.tiempo??m.t??m.time??m.seconds),l:String(m.etiqueta??m.l??m.label??m.comentario??m.comment??'')})).filter(m=>isFinite(m.t)&&m.t>=0)};
+async function loadMarks(f){let a;try{a=parseMarks(await f.text())}catch(e){return say('JSON no válido: '+e.message)}
+ if(!a.length)return say('El JSON no contiene marcas.');
+ if(!buf){pend=a;return say(a.length+' marcas listas: se aplicarán al cargar el audio.')}
+ if(marks.length&&!confirm('Ya hay '+marks.length+' marcas.\nAceptar = reemplazarlas · Cancelar = añadir las nuevas'))marks.push(...a);else marks=a;
+ renderMarks();say(a.length+' marcas cargadas desde '+f.name)}
+async function loadMd(f){if(!f)return;const t=await f.text();
+ if(ed.getValue().trim()&&!confirm('El editor ya tiene notas.\nAceptar = reemplazarlas · Cancelar = añadir al final')){
+  ed.navigateFileEnd();ed.insert((ed.getValue().endsWith('\n')?'':'\n')+'\n'+t)}else ed.setValue(t,-1);
+ ed.focus();say('Notas cargadas desde '+f.name)}
+const parseT=v=>{v=v.trim().replace(',','.');const p=v.split(':');if(!v||p.length>3||p.some(x=>!/^\d*\.?\d+$|^\d+\.?$/.test(x)))return NaN;return p.reduce((a,x)=>a*60+parseFloat(x),0)};
 const marksToNotes=()=>{if(!marks.length)return say('No hay marcas');ed.insert([...marks].sort((a,b)=>a.t-b.t).map(m=>'- ['+fmt(m.t)+'] '+m.l).join('\n')+'\n');ed.focus()};
 const download=()=>{const b=new Blob([ed.getValue()],{type:'text/markdown;charset=utf-8'}),a=document.createElement('a');
  a.href=URL.createObjectURL(b);a.download=fname?fname+'-notas.md':'notas.md';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500);say('Descargado: '+a.download)};
@@ -183,6 +203,12 @@ const view=t=>{const w=cv.clientWidth;if(t<off||t>off+w/pps)off=t-.1*w/pps};
 $('#bp').onclick=toggle;$('#bs').onclick=stop;
 $('#bb').onclick=()=>seek(au.currentTime-step());$('#bf').onclick=()=>seek(au.currentTime+step());
 $('#sa').onclick=fixA;$('#sb').onclick=fixB;$('#lp').onclick=toggleLoop;$('#cl').onclick=clearLoop;$('#mk').onclick=mark;$('#bt').onclick=insTs;$('#mu').onclick=delLast;$('#ma').onclick=delAll;$('#bm').onclick=marksToNotes;$('#bd').onclick=download;
+$('#mj').onclick=saveMarks;$('#mi').onclick=()=>$('#fj').click();$('#fj').onchange=e=>{loadMarks(e.target.files[0]);e.target.value=''};
+$('#bu').onclick=()=>$('#fm').click();$('#fm').onchange=e=>{loadMd(e.target.files[0]);e.target.value=''};
+$('#tm').onfocus=e=>e.target.select();
+$('#tm').onkeydown=e=>{if(e.key==='Enter'){const t=parseT(e.target.value);
+  if(!buf)say('Abre un audio primero.');else if(isNaN(t))say('Tiempo no válido. Ejemplos: 1:23.456 · 83.456 · 0:00.250');
+  else{seek(t);view(clamp(t,0,dur()));say('Cabezal en '+fmt(clamp(t,0,dur())))}e.target.blur()}else if(e.key==='Escape')e.target.blur()};
 $('#ia').onchange=e=>{A=e.target.value===''?null:+e.target.value/1000};
 $('#ib').onchange=e=>{B=e.target.value===''?null:+e.target.value/1000};
 
@@ -227,7 +253,7 @@ function tick(){
   if(!au.paused&&!drag){const x=(au.currentTime-off)*pps;if(x>cv.clientWidth-10||x<0)off=au.currentTime-.05*cv.clientWidth/pps}
  }
  draw();
- $('#tm').textContent=fmt(au.currentTime||0);
+ if(document.activeElement.id!=='tm')$('#tm').value=fmt(au.currentTime||0);
  $('#bp').textContent=au.paused?'▶ Play':'⏸ Pausa';$('#lp').classList.toggle('on',loop);
  const ae=document.activeElement;
  if(ae.id!='ia')$('#ia').value=A==null?'':Math.round(A*1000);
