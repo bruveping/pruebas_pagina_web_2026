@@ -24,5 +24,10 @@ https://bruveping.github.io/pruebas_pagina_web_2026/Herramienta_transcripción_m
 visor_codigo_strudel_json [visor_codigo_strudel_json](https://bruveping.github.io/pruebas_pagina_web_2026/visor_codigo_strudel_json/) <br>
 https://bruveping.github.io/pruebas_pagina_web_2026/visor_codigo_strudel_json/
 
+## AlphaText Studio
+AlphaText Studio [AlphaText Studio](https://bruveping.github.io/pruebas_pagina_web_2026/AlphaText Studio/) <br>
+https://bruveping.github.io/pruebas_pagina_web_2026/AlphaText Studio/
+
+
 
 
