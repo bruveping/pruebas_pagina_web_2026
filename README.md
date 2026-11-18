@@ -20,4 +20,9 @@ https://bruveping.github.io/pruebas_pagina_web_2026/progresiones_esquemas_acorde
 Herramienta_transcripción_musical [Herramienta_transcripción_musical](https://bruveping.github.io/pruebas_pagina_web_2026/Herramienta_transcripción_musical/) <br>
 https://bruveping.github.io/pruebas_pagina_web_2026/Herramienta_transcripción_musical/
 
+## visor_codigo_strudel_json
+visor_codigo_strudel_json [visor_codigo_strudel_json](https://bruveping.github.io/pruebas_pagina_web_2026/visor_codigo_strudel_json/) <br>
+https://bruveping.github.io/pruebas_pagina_web_2026/visor_codigo_strudel_json/
+
+
 
