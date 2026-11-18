@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AlphaText Studio</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Font Awesome para Iconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        /* Estilos base y ajustes de diseño */
+        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Inter', sans-serif; }
+        
+        /* Contenedores Principales */
+        #editor-container { position: relative; height: 100%; width: 100%; }
+        #editor { position: absolute; top: 0; right: 0; bottom: 0; left: 0; font-size: 14px; }
+        
+        /* Visor de alphaTab */
+        .alphaTab-wrapper { 
+            height: 100%; 
+            overflow-y: auto; 
+            background: #f8fafc; 
+            color: #0f172a;
+        }
+        
+        /* Sobrescribir colores de alphaTab si es necesario */
+        .at-cursor-bar { background: rgba(59, 130, 246, 0.2) !important; }
+        .at-selection-wrapper { background: rgba(59, 130, 246, 0.1) !important; }
+
+        /* Estilo personalizado para botones */
+        .btn {
+            @apply flex items-center justify-center px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-sm active:scale-95;
+        }
+        .btn-primary { @apply bg-blue-600 text-white hover:bg-blue-700 shadow-blue-500/30; }
+        .btn-secondary { @apply bg-slate-700 text-white hover:bg-slate-600 shadow-slate-900/30; }
+        .btn-control { @apply bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700; }
+        
+        /* Scrollbar personalizado para el visor */
+        .alphaTab-wrapper::-webkit-scrollbar { width: 8px; }
+        .alphaTab-wrapper::-webkit-scrollbar-track { background: #f1f5f9; }
+        .alphaTab-wrapper::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .alphaTab-wrapper::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="flex flex-col h-screen bg-slate-900 text-white">
+
+    <!-- Barra de Herramientas -->
+    <header class="h-16 bg-slate-900 border-b border-slate-800 flex justify-between items-center px-6 shrink-0 z-10 shadow-md">
+        <div class="flex items-center space-x-3">
+            <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg">
+                <i class="fas fa-music text-white text-sm"></i>
+            </div>
+            <h1 class="text-xl font-bold tracking-tight text-slate-100">AlphaText Studio</h1>
+        </div>
+        
+        <div class="flex items-center space-x-2">
+            <!-- Controles de Reproducción -->
+            <div class="flex items-center space-x-1 bg-slate-950 p-1 rounded-lg border border-slate-800">
+                <button id="btn-play" class="w-10 h-10 flex items-center justify-center rounded-md text-slate-300 hover:bg-slate-800 hover:text-green-400 transition-colors" title="Reproducir">
+                    <i class="fas fa-play"></i>
+                </button>
+                <button id="btn-pause" class="w-10 h-10 flex items-center justify-center rounded-md text-slate-300 hover:bg-slate-800 hover:text-yellow-400 transition-colors" title="Pausar">
+                    <i class="fas fa-pause"></i>
+                </button>
+                <button id="btn-stop" class="w-10 h-10 flex items-center justify-center rounded-md text-slate-300 hover:bg-slate-800 hover:text-red-400 transition-colors" title="Detener">
+                    <i class="fas fa-stop"></i>
+                </button>
+            </div>
+            
+            <div class="w-px h-8 bg-slate-700 mx-2"></div>
+            
+            <!-- Controles de Descarga -->
+            <button id="btn-dl-at" class="btn btn-secondary text-sm">
+                <i class="fas fa-file-code mr-2"></i> .alphatext
+            </button>
+            <button id="btn-dl-mid" class="btn btn-primary text-sm">
+                <i class="fas fa-file-audio mr-2"></i> MIDI
+            </button>
+        </div>
+    </header>
+
+    <!-- Contenedor Principal (Split View) -->
+    <main class="flex-1 flex flex-col md:flex-row overflow-hidden">
+        <!-- Panel del Editor Ace -->
+        <div class="w-full md:w-1/2 h-1/2 md:h-full border-b md:border-b-0 md:border-r border-slate-700 relative">
+            <div id="editor-container">
+                <div id="editor"></div>
+            </div>
+        </div>
+        
+        <!-- Panel del Visor alphaTab -->
+        <div class="w-full md:w-1/2 h-1/2 md:h-full relative shadow-inner">
+            <div class="alphaTab-wrapper" id="alphaTab-container">
+                <div id="alphaTab" class="p-6 md:p-10 flex justify-center"></div>
+            </div>
+            <!-- Overlay de Carga -->
+            <div id="loading-overlay" class="absolute inset-0 bg-slate-50/80 flex flex-col items-center justify-center z-10 transition-opacity duration-300">
+                <i class="fas fa-circle-notch fa-spin text-4xl text-blue-600 mb-4"></i>
+                <p class="text-slate-700 font-medium animate-pulse">Renderizando partitura...</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Sistema de Notificaciones (Reemplazo de alert) -->
+    <div id="toast" class="fixed bottom-6 right-6 transform translate-y-20 opacity-0 transition-all duration-300 z-50 rounded-lg shadow-2xl overflow-hidden flex items-stretch max-w-sm">
+        <div id="toast-icon-bg" class="w-12 flex items-center justify-center bg-blue-600">
+            <i id="toast-icon" class="fas fa-info-circle text-white text-lg"></i>
+        </div>
+        <div class="bg-slate-800 px-4 py-3 flex-1">
+            <p id="toast-msg" class="text-sm font-medium text-slate-200"></p>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.32.7/ace.js"></script>
+    <script type="module">
+        import * as alphaTab from 'https://cdn.jsdelivr.net/npm/@coderline/alphatab@latest/dist/alphaTab.min.mjs';
+
+        // --- SISTEMA DE NOTIFICACIONES ---
+        let toastTimeout;
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toast-msg');
+            const toastIconBg = document.getElementById('toast-icon-bg');
+            const toastIcon = document.getElementById('toast-icon');
+
+            toastMsg.textContent = message;
+
+            // Configurar estilos según el tipo
+            if (type === 'error') {
+                toastIconBg.className = 'w-12 flex items-center justify-center bg-red-500';
+                toastIcon.className = 'fas fa-exclamation-triangle text-white text-lg';
+            } else if (type === 'success') {
+                toastIconBg.className = 'w-12 flex items-center justify-center bg-green-500';
+                toastIcon.className = 'fas fa-check text-white text-lg';
+            } else {
+                toastIconBg.className = 'w-12 flex items-center justify-center bg-blue-500';
+                toastIcon.className = 'fas fa-info-circle text-white text-lg';
+            }
+
+            // Mostrar
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3500);
+        }
+
+        // --- CÓDIGO POR DEFECTO ---
+        const defaultText = `\\title "Hello alphaTab"
+\\subtitle "Editame en el panel izquierdo (Ace)"
+\\tempo 90
+.
+:4 0.6 1.6 3.6 0.5 2.5 3.5 0.4 2.4 |
+3.4 0.3 2.3 0.2 1.2 3.2 0.1 1.1 |
+3.1.1`;
+
+        // --- INICIALIZACIÓN DE ACE EDITOR ---
+        const editor = ace.edit("editor");
+        editor.setTheme("ace/theme/tomorrow_night_eighties");
+        // No hay un modo estricto de alphatext, pero text o ruby ofrecen colores agradables
+        editor.session.setMode("ace/mode/ruby"); 
+        editor.setFontSize(14);
+        editor.setShowPrintMargin(false);
+        editor.setValue(defaultText, -1);
+
+        // --- INICIALIZACIÓN DE ALPHATAB ---
+        const element = document.getElementById('alphaTab');
+        const loadingOverlay = document.getElementById('loading-overlay');
+        
+        const api = new alphaTab.AlphaTabApi(element, {
+            player: {
+                enablePlayer: true,
+                soundFont: 'https://cdn.jsdelivr.net/npm/@coderline/alphatab@latest/dist/soundfont/sonivox.sf2',
+                scrollElement: document.getElementById('alphaTab-container')
+            },
+            display: {
+                layoutMode: 'page',
+                staveProfile: 'default'
+            }
+        });
+
+        // Eventos de carga de alphaTab para UI
+        api.renderStarted.on(() => {
+            loadingOverlay.style.opacity = '1';
+            loadingOverlay.style.pointerEvents = 'all';
+        });
+        
+        api.renderFinished.on(() => {
+            loadingOverlay.style.opacity = '0';
+            loadingOverlay.style.pointerEvents = 'none';
+        });
+
+        api.error.on((e) => {
+            showToast("Error de sintaxis en AlphaText", "error");
+            console.error("AlphaTab Error:", e);
+            loadingOverlay.style.opacity = '0';
+            loadingOverlay.style.pointerEvents = 'none';
+        });
+
+        // --- SINCRONIZACIÓN ACE -> ALPHATAB ---
+        // Usamos debounce para no renderizar en cada pulsación (mejora rendimiento)
+        let renderTimeout;
+        editor.session.on('change', () => {
+            clearTimeout(renderTimeout);
+            renderTimeout = setTimeout(() => {
+                const tex = editor.getValue();
+                try {
+                    api.tex(tex);
+                } catch (err) {
+                    console.warn("Esperando corrección de sintaxis...");
+                }
+            }, 600); // Espera 600ms después de que dejes de escribir
+        });
+
+        // Renderizado Inicial
+        api.tex(defaultText);
+
+        // --- CONTROLES DE REPRODUCCIÓN ---
+        document.getElementById('btn-play').onclick = () => {
+            if (api.playerState !== 1) { // 1 = playing
+                api.play();
+                showToast("Reproduciendo", "success");
+            }
+        };
+        
+        document.getElementById('btn-pause').onclick = () => {
+            api.pause();
+        };
+        
+        document.getElementById('btn-stop').onclick = () => {
+            api.stop();
+        };
+
+        // --- DESCARGAS ---
+        // Descargar .alphatext
+        document.getElementById('btn-dl-at').onclick = () => {
+            const text = editor.getValue();
+            if (!text.trim()) return showToast("El editor está vacío.", "error");
+
+            const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'partitura.alphatext';
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast("Archivo .alphatext descargado", "success");
+        };
+
+        // Descargar Audio MIDI (.mid)
+        document.getElementById('btn-dl-mid').onclick = () => {
+            if (!api.score) {
+                showToast("No hay partitura cargada para exportar.", "error");
+                return;
+            }
+
+            try {
+                // alphaTab expone la funcionalidad MidiFileExporter para convertir el Score a bytes
+                const midiBytes = alphaTab.exporter.MidiFileExporter.export(api.score);
+                
+                const blob = new Blob([new Uint8Array(midiBytes)], { type: 'audio/midi' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'audio_general.mid';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                showToast("MIDI general descargado exitosamente", "success");
+            } catch (error) {
+                console.error("Error al exportar MIDI:", error);
+                showToast("Hubo un error al generar el archivo MIDI.", "error");
+            }
+        };
+
+    </script>
+</body>
+</html>
