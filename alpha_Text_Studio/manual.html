@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="es" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manual Técnico - alphaTex Documentation</title>
+    
+    <!-- Tailwind CSS con plugin Typography para estilo editorial limpio -->
+    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+    
+    <!-- Google Fonts: Inter para lectura y JetBrains Mono para código -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- Marked.js para parsear Markdown -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    
+    <!-- Highlight.js para resaltado de sintaxis -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Ajustes tipográficos finos para documentación */
+        .prose pre {
+            background-color: #0f172a !important;
+            border: 1px solid #1e293b;
+            border-radius: 0.75rem;
+            padding: 1.25rem;
+            position: relative;
+        }
+        .prose code:not(pre code) {
+            background-color: #f1f5f9;
+            color: #0f172a;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.375rem;
+            font-weight: 500;
+            font-size: 0.875em;
+        }
+        .prose code:not(pre code)::before,
+        .prose code:not(pre code)::after {
+            content: none !important;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased selection:bg-indigo-100 selection:text-indigo-900">
+
+    <!-- ===================================================================== -->
+    <!-- ZONA DE FUENTE MARKDOWN: EDITA O PEGA AQUÍ TU MANUAL DIRECTAMENTE     -->
+    <!-- ===================================================================== -->
+    <div id="markdown-source" style="display: none;">
+# Introducción
+
+`alphaTex` es un formato de notación en texto plano para alphaTab. Se escribe una partitura como código fuente y alphaTab la analiza para convertirla en el mismo modelo de datos que generan otros formatos.
+
+Para habilitar la carga de alphaTex, configura la opción `tex`, o bien pasa una cadena de texto directamente a través del método `tex()` de la API. alphaTab lee el código fuente desde el contenido del elemento y lo procesa. También es posible cargarlo desde un archivo, del mismo modo que se hace con cualquier otro formato.
+
+alphaTex abarca la mayoría de las funciones de notación compatibles con alphaTab. Si falta alguna función que necesites, abre un hilo de discusión en GitHub.
+
+Comienza por la **sintaxis del lenguaje**; en ella se definen todos los términos que se utilizan en el resto de esta sección.
+
+## Ejemplo
+
+El siguiente ejemplo se genera completamente a partir de código fuente en alphaTex: se trata de la parte de guitarra solista de la sección *"Intro Build"* de **Iron Waltz**, la canción de demostración de alphaTab.
+
+```alphatext
+\title "Iron Waltz"
+\subtitle "Intro Build"
+\artist "alphaTab"
+\tempo 196
+\track ("Lead Guitar" "Lead Gtr.") { instrument distortionguitar }
+\tuning (Eb4 Bb3 Gb3 Db3 Ab2 Eb2)
+\ts (3 4)
+\section "Intro Build"
+7.1.4{dy f} 14.1.8 12.2 14.2 12.2 |
+:16 11.1{b (0 2)} -.1{b (2 0)} :8 11.1 12.2.4 :8 11.1 12.1 |
+:16 11.1{h} 12.1{h} :8 11.1 12.2 14.2 16.2 14.2 |
+2.1.4 4.1 6.1{v} |
+7.1.4 7.2.8 7.1 9.1 7.1 |
+:16 11.1{b (0 2)} -.1{b (2 0)} :8 11.1 12.2.4 :8 11.1 12.1 |
+11.1.8 12.1 11.1 9.1 7.1 6.1 |
+2.1.4 4.1 6.1{v}
+```
+    </div>
+    <!-- ===================================================================== -->
+    <!-- FIN DE LA ZONA DE FUENTE MARKDOWN                                     -->
+    <!-- ===================================================================== -->
+
+
+    <!-- BARRA SUPERIOR DE NAVEGACIÓN -->
+    <header class="sticky top-0 z-30 bg-white/90 backdrop-blur-md border-b border-slate-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <!-- Título / Logo del Manual -->
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold shadow-sm">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+                    </svg>
+                </div>
+                <div>
+                    <span class="font-semibold text-slate-900 tracking-tight">Manual Técnico</span>
+                    <span class="hidden sm:inline-block ml-2 text-xs font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">v1.0</span>
+                </div>
+            </div>
+
+            <!-- Controles de Modo (Vista Manual / Editar MD en vivo) -->
+            <div class="flex items-center gap-2">
+                <div class="inline-flex rounded-lg bg-slate-100 p-1 border border-slate-200">
+                    <button id="btn-mode-view" onclick="setMode('view')" class="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-md bg-white text-slate-900 shadow-sm transition-all">
+                        Vista Manual
+                    </button>
+                    <button id="btn-mode-edit" onclick="setMode('edit')" class="px-3 py-1.5 text-xs sm:text-sm font-medium rounded-md text-slate-600 hover:text-slate-900 transition-all">
+                        Editar MD en vivo
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- CONTENEDOR PRINCIPAL -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
+        <div class="flex flex-col lg:flex-row gap-10">
+
+            <!-- SIDEBAR: ÍNDICE DE CONTENIDOS AUTOMÁTICO -->
+            <aside id="sidebar-toc" class="lg:w-64 shrink-0">
+                <div class="lg:sticky lg:top-24 bg-white lg:bg-transparent p-4 lg:p-0 rounded-xl border border-slate-200 lg:border-none shadow-sm lg:shadow-none">
+                    <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">
+                        En esta página
+                    </h2>
+                    <nav id="toc-list" class="space-y-1.5 text-sm border-l-2 border-slate-200">
+                        <!-- Generado dinámicamente por JS -->
+                    </nav>
+                </div>
+            </aside>
+
+            <!-- ÁREA DE DOCUMENTACIÓN / EDITOR -->
+            <main class="flex-1 min-w-0">
+                
+                <!-- MODO 1: VISTA DE LECTURA DEL MANUAL -->
+                <article id="view-container" class="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-6 sm:p-10 lg:p-12">
+                    <div id="rendered-output" class="prose prose-slate max-w-none prose-headings:scroll-mt-24 prose-headings:font-semibold prose-a:text-indigo-600 hover:prose-a:text-indigo-500">
+                        <!-- El contenido Markdown renderizado aparece aquí -->
+                    </div>
+                </article>
+
+                <!-- MODO 2: EDITOR EN VIVO (OPCIONAL) -->
+                <div id="edit-container" class="hidden space-y-6">
+                    <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-sm text-amber-900">
+                        <div class="flex items-start sm:items-center gap-2.5">
+                            <svg class="w-5 h-5 text-amber-600 shrink-0 mt-0.5 sm:mt-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <span>Edita tu Markdown aquí para previsualizar. Recuerda copiar el código si deseas guardarlo permanentemente en el archivo HTML.</span>
+                        </div>
+                        <button onclick="copySourceToClipboard(this)" class="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-medium rounded-lg transition-colors text-xs shadow-sm">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                            </svg>
+                            <span>Copiar Markdown</span>
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                        <!-- Textarea de edición -->
+                        <div class="flex flex-col">
+                            <label for="live-editor" class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Código Fuente Markdown</label>
+                            <textarea id="live-editor" rows="24" class="w-full flex-1 font-mono text-sm bg-slate-900 text-slate-100 p-5 rounded-2xl border border-slate-700 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none leading-relaxed shadow-sm" spellcheck="false"></textarea>
+                        </div>
+
+                        <!-- Vista previa instantánea -->
+                        <div class="flex flex-col">
+                            <span class="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Vista Previa en Vivo</span>
+                            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sm:p-8 overflow-y-auto max-h-[680px]">
+                                <div id="live-preview-output" class="prose prose-slate prose-sm sm:prose-base max-w-none"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- LÓGICA DE RENDERIZADO, ÍNDICE Y BOTONES DE COPIADO                    -->
+    <!-- ===================================================================== -->
+    <script>
+        // Configurar Marked.js
+        marked.setOptions({
+            breaks: true,
+            gfm: true
+        });
+
+        const sourceDiv = document.getElementById('markdown-source');
+        const renderedOutput = document.getElementById('rendered-output');
+        const liveEditor = document.getElementById('live-editor');
+        const livePreviewOutput = document.getElementById('live-preview-output');
+        const tocList = document.getElementById('toc-list');
+
+        /**
+         * Extrae el texto limpio del div oculto preservando saltos de línea e indentación interna.
+         */
+        function getCleanMarkdownFromDiv() {
+            // textContent conserva exactamente los saltos de línea y espacios dentro del div
+            let rawText = sourceDiv.textContent || "";
+            
+            // Eliminar únicamente la primera y última línea vacía si el usuario dejó espacio tras abrir/cerrar la etiqueta <div>
+            rawText = rawText.replace(/^\s*\n/, '').replace(/\n\s*$/, '');
+            return rawText;
+        }
+
+        /**
+         * Renderiza un string Markdown dentro de un elemento destino y aplica mejoras (código, botones, TOC)
+         */
+        function renderMarkdown(markdownText, targetContainer, updateToc = false) {
+            try {
+                // Convertir Markdown a HTML
+                targetContainer.innerHTML = marked.parse(markdownText);
+
+                // Procesar bloques <pre><code> para resaltado y botón de copiar
+                const codeBlocks = targetContainer.querySelectorAll('pre');
+                codeBlocks.forEach((pre) => {
+                    const code = pre.querySelector('code');
+                    if (code) {
+                        // Detectar lenguaje si existe clase language-*
+                        const langClass = Array.from(code.classList).find(c => c.startsWith('language-'));
+                        const langName = langClass ? langClass.replace('language-', '') : 'texto';
+
+                        // Intentar resaltar sintaxis con highlight.js si el lenguaje es soportado
+                        try {
+                            if (langClass && hljs.getLanguage(langName)) {
+                                hljs.highlightElement(code);
+                            }
+                        } catch (e) {
+                            // Si es un lenguaje personalizado (como alphatext), mantener formato limpio sin errores
+                        }
+
+                        // Crear barra superior sutil dentro del bloque de código (etiqueta lenguaje + botón copiar)
+                        const headerBar = document.createElement('div');
+                        headerBar.className = 'flex items-center justify-between text-xs text-slate-400 pb-3 mb-3 border-b border-slate-800 select-none';
+                        
+                        const langLabel = document.createElement('span');
+                        langLabel.className = 'font-mono uppercase tracking-wider text-[11px] font-medium text-slate-400';
+                        langLabel.textContent = langName;
+
+                        const copyBtn = document.createElement('button');
+                        copyBtn.type = 'button';
+                        copyBtn.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors text-xs font-sans';
+                        copyBtn.innerHTML = `
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                            </svg>
+                            <span>Copiar</span>
+                        `;
+
+                        copyBtn.addEventListener('click', () => {
+                            copyTextFallback(code.textContent, copyBtn);
+                        });
+
+                        headerBar.appendChild(langLabel);
+                        headerBar.appendChild(copyBtn);
+                        pre.insertBefore(headerBar, code);
+                    }
+                });
+
+                // Generar Índice de Contenidos (TOC) si corresponde
+                if (updateToc) {
+                    buildTableOfContents(targetContainer);
+                }
+            } catch (error) {
+                console.error("Error al renderizar Markdown:", error);
+                targetContainer.innerHTML = `<div class="p-4 bg-red-50 text-red-700 rounded-lg">Error al procesar el contenido Markdown.</div>`;
+            }
+        }
+
+        /**
+         * Genera dinámicamente el índice lateral leyendo los encabezados h1, h2, h3
+         */
+        function buildTableOfContents(container) {
+            tocList.innerHTML = '';
+            const headings = container.querySelectorAll('h1, h2, h3');
+            const sidebar = document.getElementById('sidebar-toc');
+
+            if (headings.length === 0) {
+                sidebar.classList.add('hidden');
+                return;
+            }
+            sidebar.classList.remove('hidden');
+
+            headings.forEach((heading, index) => {
+                // Asignar un ID único amigable para anclas
+                const slug = heading.textContent
+                    .toLowerCase()
+                    .trim()
+                    .replace(/[^\w\s-]/g, '')
+                    .replace(/\s+/g, '-') || `seccion-${index}`;
+                heading.id = slug;
+
+                const link = document.createElement('a');
+                link.href = `#${slug}`;
+                link.textContent = heading.textContent;
+
+                // Indentación visual según jerarquía del encabezado
+                let paddingClass = 'pl-3';
+                if (heading.tagName === 'H2') paddingClass = 'pl-5';
+                if (heading.tagName === 'H3') paddingClass = 'pl-8 text-xs';
+
+                link.className = `block py-1 ${paddingClass} -ml-[2px] border-l-2 border-transparent text-slate-600 hover:text-indigo-600 hover:border-indigo-600 transition-colors truncate`;
+                
+                tocList.appendChild(link);
+            });
+        }
+
+        /**
+         * Copia texto al portapapeles de forma segura (compatible con iframes)
+         */
+        function copyTextFallback(text, buttonElement) {
+            const tempTextArea = document.createElement('textarea');
+            tempTextArea.value = text;
+            tempTextArea.style.position = 'fixed';
+            tempTextArea.style.left = '-9999px';
+            document.body.appendChild(tempTextArea);
+            tempTextArea.select();
+            
+            try {
+                document.execCommand('copy');
+                const originalHTML = buttonElement.innerHTML;
+                buttonElement.innerHTML = `
+                    <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    <span class="text-emerald-300">¡Copiado!</span>
+                `;
+                setTimeout(() => {
+                    buttonElement.innerHTML = originalHTML;
+                }, 1800);
+            } catch (err) {
+                console.error('No se pudo copiar el texto', err);
+            } finally {
+                document.body.removeChild(tempTextArea);
+            }
+        }
+
+        /**
+         * Copia el contenido completo del editor en vivo
+         */
+        function copySourceToClipboard(btn) {
+            copyTextFallback(liveEditor.value, btn);
+        }
+
+        /**
+         * Alterna entre el modo lectura ("Vista Manual") y el editor en vivo ("Editar MD en vivo")
+         */
+        function setMode(mode) {
+            const viewContainer = document.getElementById('view-container');
+            const editContainer = document.getElementById('edit-container');
+            const sidebarToc = document.getElementById('sidebar-toc');
+            const btnView = document.getElementById('btn-mode-view');
+            const btnEdit = document.getElementById('btn-mode-edit');
+
+            if (mode === 'edit') {
+                viewContainer.classList.add('hidden');
+                sidebarToc.classList.add('hidden');
+                editContainer.classList.remove('hidden');
+
+                btnEdit.classList.add('bg-white', 'text-slate-900', 'shadow-sm');
+                btnEdit.classList.remove('text-slate-600');
+                btnView.classList.remove('bg-white', 'text-slate-900', 'shadow-sm');
+                btnView.classList.add('text-slate-600');
+
+                // Sincronizar editor con la vista previa
+                renderMarkdown(liveEditor.value, livePreviewOutput, false);
+            } else {
+                editContainer.classList.add('hidden');
+                viewContainer.classList.remove('hidden');
+
+                btnView.classList.add('bg-white', 'text-slate-900', 'shadow-sm');
+                btnView.classList.remove('text-slate-600');
+                btnEdit.classList.remove('bg-white', 'text-slate-900', 'shadow-sm');
+                btnEdit.classList.add('text-slate-600');
+
+                // Volver a renderizar la vista principal con los últimos cambios del editor
+                renderMarkdown(liveEditor.value, renderedOutput, true);
+            }
+        }
+
+        // Escuchar cambios en tiempo real dentro del editor
+        liveEditor.addEventListener('input', (e) => {
+            const updatedMd = e.target.value;
+            sourceDiv.textContent = updatedMd; // Mantener sincronizado el div fuente en memoria
+            renderMarkdown(updatedMd, livePreviewOutput, false);
+        });
+
+        // Inicialización al cargar la página
+        window.addEventListener('DOMContentLoaded', () => {
+            const initialMarkdown = getCleanMarkdownFromDiv();
+            liveEditor.value = initialMarkdown;
+            renderMarkdown(initialMarkdown, renderedOutput, true);
+        });
+    </script>
+</body>
+</html>
