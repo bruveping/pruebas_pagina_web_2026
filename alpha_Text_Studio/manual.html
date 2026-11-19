@@ -94,6 +94,132 @@ El siguiente ejemplo se genera completamente a partir de código fuente en alpha
 11.1.8 12.1 11.1 9.1 7.1 6.1 |
 2.1.4 4.1 6.1{v}
 ```
+# Sintaxis del lenguaje
+Esta página describe la sintaxis del código fuente de alphaTex y define el vocabulario que se utiliza en el resto de la referencia. Todas las demás páginas enlazan con los enlaces de esta página la primera vez que se utiliza un término. Guarde el código fuente de alphaTex con la extensión de archivo .atex.
+
+## Comentarios
+Úselos //para comentarios de línea y /* ... */para comentarios de bloque. Colóquelos en cualquier parte de un archivo alphaTex para anotar su código fuente.
+```
+// This is a single-line comment.
+/* This is a
+   multi-line block comment. */
+```
+  ## Cadenas de caracteres
+   Encierre los valores de texto entre comillas dobles o simples.
+```
+   "Double quoted string"
+   'Single quoted string'
+```
+   Las siguientes secuencias de escape son compatibles dentro de los literales de cadena:
+
+   \n— salto de línea
+   \r— retorno de carro
+   \t— pestaña
+   \\— una barra invertida literal
+   \'y \"— una cita literal
+   \uXXXX— un punto de código Unicode expresado como cuatro dígitos hexadecimales
+  ## Números
+   alphaTex admite números enteros y decimales. Los números decimales solo se aceptan en los lugares donde no puedan entrar en conflicto con la notación de notas de traste o los valores de duración.
+
+  ### Ejemplos:
+
+   10
+   -10
+   0.5
+   -4.5
+  ## Listas de argumentos
+   Una lista de argumentos es el conjunto de valores que se pasan a una etiqueta de metadatos o a una propiedad. Si se pasan varios valores, se deben encerrar entre paréntesis. Si se pasa un solo valor, se omiten los paréntesis.
+
+   Cada entrada dentro de la lista se llama argumento . Las tablas de referencia describen los parámetros correspondientes : las posiciones que el lenguaje acepta para una construcción dada.
+
+   ## Un argumento puede ser:
+
+   Un número entero: 3,-10
+   Un número decimal: 3.3,-10.5
+   Una cadena: "Hello",'Hello'
+   Un identificador reservado: true, hide,x
+   Ejemplos básicos:
+
+   (1 2 3)— tres números
+   ("Test" 3 hide)— tipos mixtos
+   ### Ejemplos reales:
+   \ts (3 4)— una indicación de compás de 3/4 en el alcance del compás
+   12.2 { b (0 4 0) }— una flexión y liberación completas en una nota
+   \title ("Song Title" "Title: %TITLE%" left)— un título de canción que se muestra como Title: Song Title, alineado a la izquierda
+   Los argumentos se separan mediante espacios en blanco. No se utilizan comas.
+
+   ## Propiedades
+   Una propiedad es un name argumentspar de caracteres dentro de llaves. Las propiedades se adjuntan a los ritmos, las notas y las etiquetas de metadatos para agregar efectos, indicadores de visibilidad y otros aspectos opcionales.
+   Los nombres de las propiedades no distinguen entre mayúsculas y minúsculas. La lista de argumentos de una propiedad sigue las reglas de Listas de argumentos .
+```
+   \track "Track Name" { color "#FF0000" }
+   \staff { score }
+   C4 { b (0 4) v txt "Bend with Vibrato" }
+```
+   ## Etiquetas de metadatos
+   Una etiqueta de metadatos es una construcción con prefijo de barra invertida de la forma \name arguments {properties}. Tanto la lista de argumentos como el bloque de propiedades son opcionales; las etiquetas individuales deciden qué argumentos y propiedades aceptan.
+
+   Los nombres de las etiquetas de metadatos no distinguen entre mayúsculas y minúsculas.
+```
+   \title "Song Title"
+   \track "Track Name" { color '#FF0000' }
+   \ts (3 4)
+```
+   Los argumentos de una etiqueta de metadatos siguen las listas de argumentos . Sus propiedades siguen las propiedades .
+
+   ## Ámbitos
+   Las construcciones de alphaTex se agrupan según su ubicación en el código fuente. Esta agrupación se denomina ámbito . Cada página de referencia de esta sección documenta un ámbito.
+
+   A las etiquetas de metadatos se les aplican cuatro ámbitos:
+
+   ## Metadatos estructurales
+   Etiquetas que inician una nueva pista, personal o voz: \track, \staff, \voice. Documentado en metadatos estructurales .
+
+   ## Metadatos de puntuación
+   Etiquetas generales de la canción que describen la pieza: título, artista, tempo predeterminado, etc. Deben ubicarse al principio del archivo, encima del primer compás. Documentadas en Metadatos de la partitura .
+
+   ## Metadatos del personal
+   Etiquetas que configuran un pentagrama individual: su instrumento, afinación, tabla de articulación y ajustes relacionados. Documentado en Metadatos del pentagrama .
+
+   ## Metadatos de la barra
+   Etiquetas que se aplican a un solo compás: clave, armadura, compás, repeticiones. Documentadas en Metadatos del compás .
+
+   A las propiedades se les aplican dos ámbitos:
+
+   ## Propiedad Beat
+   Una propiedad asociada a un compás, que controla los efectos o anotaciones que se aplican a cada nota de ese compás. Documentada en Propiedades del compás .
+
+   ## Propiedad de la nota
+   Una propiedad asociada a una sola nota, que controla los efectos específicos de esa nota. Documentada en Propiedades de la nota .
+
+   ## Firmas y sobrecargas
+   Cada entrada de referencia incluye una o más firmas . Una firma es una lista de parámetros aceptada para la construcción: los parámetros que nombra, sus tipos y su orden. Al escribir una etiqueta de metadatos o una propiedad, la lista de argumentos debe coincidir exactamente con una de sus firmas.
+
+   Una construcción con más de una firma se sobrecarga . \titlePor ejemplo, acepta una sola cadena en una firma y una tripleta de título, plantilla y alineación en otra. La página de referencia de cada construcción muestra todas las firmas que acepta.
+
+   ## Distinción entre mayúsculas y minúsculas
+   Los nombres de las etiquetas de metadatos, los nombres de las propiedades y los identificadores reservados, como true, hide, y , xno distinguen entre mayúsculas y minúsculas. \Title, \title, y \TITLEtodos se analizan de la misma manera.
+
+   El contenido de los literales de cadena distingue entre mayúsculas y minúsculas. Lo mismo ocurre con la letra de tono de una nota afinada: C4y c4son notas diferentes. Las alteraciones utilizan el formato que se muestra en Notas afinadas ( #, b, bb, x, ##).
+
+   ## Espacio en blanco
+   Los espacios en blanco entre tokens no son relevantes. Los saltos de línea, las tabulaciones y las secuencias de espacios separan los tokens por igual. Utilice los espacios en blanco libremente para facilitar la lectura del código fuente.
+
+   No se permiten espacios en blanco dentro de un mismo valor. La notación de notas en traste debe escribirse fret.stringsin espacio alrededor del punto, y el valor de una nota afinada debe escribirse como tono-octava-accidente sin espacio entre las partes.
+
+   ## Notación de traste
+   En un instrumento de cuerda, una nota se escribe como fret.string. El número antes del punto indica el traste. El número después del punto indica la cuerda, contada desde la más aguda hacia abajo. La cuerda 1 es la cuerda superior al leer la tablatura; es la más delgada de la guitarra y, por lo tanto, la que produce el sonido más agudo.
+```
+   5.6      // fret 5 on string 6 (the lowest string on a 6-string guitar)
+   0.1      // an open note on string 1 (the highest string)
+   12.3     // fret 12 on string 3
+```
+   Un acorde de sol mayor en afinación estándar hace vibrar seis cuerdas a la vez:
+```
+   (3.6 2.5 0.4 0.3 0.2 3.1).4
+```
+   El acorde completo se escribe como un pulso entre paréntesis porque seis notas resuenan simultáneamente. Consulta las listas de argumentos para conocer las reglas de los paréntesis.
+
     </div>
     <!-- ===================================================================== -->
     <!-- FIN DE LA ZONA DE FUENTE MARKDOWN                                     -->
