@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AlphaText Studio - Fretboard</title>
+    <title>AlphaText Studio</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -12,136 +12,270 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
-        /* Estilos base y ajustes de diseño */
-        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Inter', sans-serif; }
-        
-        /* Contenedores Principales */
-        #editor-container { position: relative; height: 100%; width: 100%; }
-        #editor { position: absolute; top: 0; right: 0; bottom: 0; left: 0; font-size: 14px; }
-        
+        /* Estilos base y layout principal */
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+
+        /* Contenedor del Editor Ace */
+        #editor-container {
+            position: relative;
+            height: 100%;
+            width: 100%;
+        }
+        #editor {
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            font-size: 14px;
+        }
+
         /* Visor de alphaTab */
-        .alphaTab-wrapper { 
-            height: 100%; 
-            overflow-y: auto; 
-            background: #f8fafc; 
+        .alphaTab-wrapper {
+            height: 100%;
+            overflow-y: auto;
+            background: #f8fafc;
             color: #0f172a;
         }
-        
-        /* Sobrescribir colores de alphaTab si es necesario */
+
+        /* Resaltado de cursor y selección en alphaTab */
         .at-cursor-bar { background: rgba(59, 130, 246, 0.2) !important; }
         .at-selection-wrapper { background: rgba(59, 130, 246, 0.1) !important; }
 
-        /* Estilo personalizado para botones */
+        /* Botones de la barra de herramientas */
         .btn {
-            @apply flex items-center justify-center px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-sm active:scale-95;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.45rem 0.85rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            transition: all 0.18s ease;
+            cursor: pointer;
+            user-select: none;
         }
-        .btn-primary { @apply bg-blue-600 text-white hover:bg-blue-700 shadow-blue-500/30; }
-        .btn-secondary { @apply bg-slate-700 text-white hover:bg-slate-600 shadow-slate-900/30; }
-        
-        /* Scrollbar personalizado */
-        .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #1e293b; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 5px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #64748b; }
-        
-        .alphaTab-wrapper::-webkit-scrollbar { width: 8px; }
+        .btn:active { transform: scale(0.96); }
+        .btn-primary {
+            background-color: #2563eb;
+            color: #ffffff;
+            box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+        }
+        .btn-primary:hover { background-color: #1d4ed8; }
+        .btn-secondary {
+            background-color: #334155;
+            color: #f8fafc;
+            border: 1px solid #475569;
+        }
+        .btn-secondary:hover { background-color: #475569; }
+        .btn-control {
+            background-color: #1e293b;
+            color: #cbd5e1;
+            border: 1px solid #334155;
+        }
+        .btn-control:hover {
+            background-color: #334155;
+            color: #ffffff;
+        }
+
+        /* Scrollbars personalizados */
+        .alphaTab-wrapper::-webkit-scrollbar,
+        .fretboard-scroll::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
         .alphaTab-wrapper::-webkit-scrollbar-track { background: #f1f5f9; }
         .alphaTab-wrapper::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         .alphaTab-wrapper::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
 
-        /* Estilos del Mástil Interactivo */
-        #fretboard-grid {
-            display: grid;
-            /* Columna 1 (Traste 0/Cejuela) más estrecha, resto de los 19 trastes uniformes */
-            grid-template-columns: 45px repeat(19, 65px); 
-            grid-template-rows: repeat(6, 1fr);
-            background: linear-gradient(90deg, #1a100c, #2c1e16, #1a100c); /* Madera oscura */
-            box-shadow: inset 0 0 15px rgba(0,0,0,0.9);
-            border-radius: 4px;
-            overflow: hidden;
-            border: 1px solid #000;
+        .fretboard-scroll::-webkit-scrollbar-track { background: #0f172a; }
+        .fretboard-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        .fretboard-scroll::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+        /* Estilos del Mástil de Guitarra (6 cuerdas x 19 trastes) */
+        .fretboard-wood {
+            background: linear-gradient(180deg, #2b1b14 0%, #3d261c 50%, #241610 100%);
+            box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.65);
+        }
+        .nut-column {
+            background: linear-gradient(90deg, #e2e8f0 0%, #cbd5e1 85%, #94a3b8 100%);
+            border-right: 4px solid #f8fafc;
+        }
+        .fret-cell {
+            position: relative;
+            border-right: 2px solid #94a3b8;
+            box-shadow: inset -1px 0 2px rgba(0, 0, 0, 0.5);
+        }
+        .string-wire {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            pointer-events: none;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+        }
+        .fret-hit {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .fret-badge {
+            opacity: 0;
+            transform: scale(0.8);
+            transition: all 0.12s ease;
+            background: #2563eb;
+            color: #ffffff;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 1px 6px;
+            border-radius: 9999px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+            border: 1px solid #93c5fd;
+            pointer-events: none;
+        }
+        .fret-hit:hover .fret-badge {
+            opacity: 1;
+            transform: scale(1);
+        }
+        .fret-hit:active .fret-badge {
+            background: #10b981;
+            transform: scale(1.12);
+        }
+        .inlay-dot {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            border-radius: 9999px;
+            background: radial-gradient(circle at 35% 35%, #f8fafc, #cbd5e1 70%, #64748b);
+            box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.8), 0 1px 3px rgba(0, 0, 0, 0.7);
+            pointer-events: none;
+            z-index: 2;
         }
     </style>
 </head>
 <body class="flex flex-col h-screen bg-slate-900 text-white">
 
-    <!-- Barra de Herramientas -->
-    <header class="h-16 bg-slate-900 border-b border-slate-800 flex justify-between items-center px-6 shrink-0 z-10 shadow-md">
+    <!-- Barra de Herramientas Superior -->
+    <header class="h-14 bg-slate-900 border-b border-slate-800 flex justify-between items-center px-4 md:px-6 shrink-0 z-20 shadow-md">
         <div class="flex items-center space-x-3">
             <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg">
                 <i class="fas fa-music text-white text-sm"></i>
             </div>
-            <h1 class="text-xl font-bold tracking-tight text-slate-100">AlphaText Studio</h1>
+            <div>
+                <h1 class="text-lg md:text-xl font-bold tracking-tight text-slate-100 leading-none">AlphaText Studio</h1>
+                <span id="track-counter" class="text-[11px] text-slate-400">Multi-Track listo</span>
+            </div>
         </div>
         
         <div class="flex items-center space-x-2">
             <!-- Controles de Reproducción -->
             <div class="flex items-center space-x-1 bg-slate-950 p-1 rounded-lg border border-slate-800">
-                <button id="btn-play" class="w-10 h-10 flex items-center justify-center rounded-md text-slate-300 hover:bg-slate-800 hover:text-green-400 transition-colors" title="Reproducir">
-                    <i class="fas fa-play"></i>
+                <button id="btn-play" class="w-9 h-9 flex items-center justify-center rounded-md text-slate-300 hover:bg-slate-800 hover:text-green-400 transition-colors" title="Reproducir">
+                    <i class="fas fa-play text-xs"></i>
                 </button>
-                <button id="btn-pause" class="w-10 h-10 flex items-center justify-center rounded-md text-slate-300 hover:bg-slate-800 hover:text-yellow-400 transition-colors" title="Pausar">
-                    <i class="fas fa-pause"></i>
+                <button id="btn-pause" class="w-9 h-9 flex items-center justify-center rounded-md text-slate-300 hover:bg-slate-800 hover:text-yellow-400 transition-colors" title="Pausar">
+                    <i class="fas fa-pause text-xs"></i>
                 </button>
-                <button id="btn-stop" class="w-10 h-10 flex items-center justify-center rounded-md text-slate-300 hover:bg-slate-800 hover:text-red-400 transition-colors" title="Detener">
-                    <i class="fas fa-stop"></i>
+                <button id="btn-stop" class="w-9 h-9 flex items-center justify-center rounded-md text-slate-300 hover:bg-slate-800 hover:text-red-400 transition-colors" title="Detener">
+                    <i class="fas fa-stop text-xs"></i>
                 </button>
             </div>
             
-            <div class="w-px h-8 bg-slate-700 mx-2"></div>
+            <div class="hidden sm:block w-px h-7 bg-slate-700 mx-1"></div>
             
-            <!-- Controles de Descarga -->
-            <button id="btn-dl-at" class="btn btn-secondary text-sm">
-                <i class="fas fa-file-code mr-2"></i> .alphatext
+            <!-- Enlace al Manual -->
+            <a href="manual.html" target="_blank" class="btn btn-control text-xs md:text-sm" title="Abrir Manual">
+                <i class="fas fa-book mr-1.5"></i> Manual
+            </a>
+
+            <!-- Botón Abrir Archivo (.alphatext) -->
+            <input type="file" id="file-input" accept=".alphatext,.txt,.tex" class="hidden">
+            <button id="btn-open" class="btn btn-control text-xs md:text-sm" title="Abrir archivo .alphatext">
+                <i class="fas fa-folder-open mr-1.5"></i> Abrir
             </button>
-            <button id="btn-dl-mid" class="btn btn-primary text-sm">
-                <i class="fas fa-file-audio mr-2"></i> MIDI
+
+            <!-- Botón Descargar .alphatext -->
+            <button id="btn-dl-at" class="btn btn-primary text-xs md:text-sm" title="Descargar código .alphatext">
+                <i class="fas fa-file-code mr-1.5"></i> .alphatext
             </button>
         </div>
     </header>
 
-    <!-- Contenedor Principal (Split View) -->
-    <main class="flex-1 flex flex-col md:flex-row overflow-hidden">
-        <!-- Panel del Editor Ace -->
-        <div class="w-full md:w-1/2 h-1/2 md:h-full border-b md:border-b-0 md:border-r border-slate-700 relative">
+    <!-- Contenedor Central (Editor + Visor Multi-Track) -->
+    <main class="flex-1 min-h-0 flex flex-col md:flex-row overflow-hidden">
+        <!-- Panel Izquierdo: Editor Ace + Zona Drag & Drop -->
+        <div id="editor-dropzone" class="w-full md:w-1/2 h-1/2 md:h-full border-b md:border-b-0 md:border-r border-slate-700 relative">
             <div id="editor-container">
                 <div id="editor"></div>
             </div>
+            <!-- Overlay visual para Arrastrar y Soltar -->
+            <div id="drop-overlay" class="hidden absolute inset-0 bg-blue-600/25 backdrop-blur-sm border-2 border-dashed border-blue-400 z-30 flex flex-col items-center justify-center pointer-events-none">
+                <i class="fas fa-file-import text-5xl text-blue-300 mb-3 animate-bounce"></i>
+                <p class="text-white font-semibold text-lg drop-shadow">Suelta aquí tu archivo .alphatext</p>
+            </div>
         </div>
         
-        <!-- Panel del Visor alphaTab -->
+        <!-- Panel Derecho: Visor alphaTab -->
         <div class="w-full md:w-1/2 h-1/2 md:h-full relative shadow-inner">
             <div class="alphaTab-wrapper" id="alphaTab-container">
-                <div id="alphaTab" class="p-6 md:p-10 flex justify-center"></div>
+                <div id="alphaTab" class="p-4 md:p-8 flex justify-center"></div>
             </div>
             <!-- Overlay de Carga -->
             <div id="loading-overlay" class="absolute inset-0 bg-slate-50/80 flex flex-col items-center justify-center z-10 transition-opacity duration-300">
-                <i class="fas fa-circle-notch fa-spin text-4xl text-blue-600 mb-4"></i>
+                <i class="fas fa-circle-notch fa-spin text-4xl text-blue-600 mb-3"></i>
                 <p class="text-slate-700 font-medium animate-pulse">Renderizando partitura...</p>
             </div>
         </div>
     </main>
 
-    <!-- Mástil Interactivo (Fretboard) -->
-    <section class="h-56 bg-slate-900 border-t border-slate-700 flex flex-col shrink-0 shadow-[0_-4px_15px_rgba(0,0,0,0.3)] z-20">
-        <div class="flex justify-between px-4 py-2 bg-slate-800 border-b border-slate-700 text-xs font-semibold text-slate-400 uppercase tracking-wider items-center">
-            <span class="flex items-center"><i class="fas fa-guitar mr-2"></i> Mástil Interactivo (Haz clic para insertar)</span>
-            <span class="text-slate-500 font-normal">Trastes 0-19</span>
+    <!-- Panel Inferior: Mástil Interactivo de 6 Cuerdas y 19 Trastes -->
+    <section id="fretboard-panel" class="bg-slate-950 border-t border-slate-800 shrink-0 z-20 select-none">
+        <!-- Cabecera del Mástil -->
+        <div class="h-9 px-4 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between text-xs">
+            <div class="flex items-center space-x-3">
+                <span class="font-semibold text-slate-200 flex items-center">
+                    <i class="fas fa-guitar text-amber-400 mr-2"></i> Mástil Interactivo (6 Cuerdas · 19 Trastes)
+                </span>
+                <span id="fret-hover-info" class="text-slate-400 hidden sm:inline">
+                    Haz clic en cualquier traste para insertar la posición (ej. 3.1, 4.2)
+                </span>
+            </div>
+            <div class="flex items-center space-x-3">
+                <label class="flex items-center space-x-1.5 text-slate-300 cursor-pointer" title="Escuchar nota al hacer clic en el mástil">
+                    <input type="checkbox" id="fret-sound-toggle" checked class="accent-blue-500 rounded cursor-pointer">
+                    <span>Sonido al clic</span>
+                </label>
+                <button id="btn-toggle-fretboard" class="text-slate-400 hover:text-white px-2 py-0.5 rounded bg-slate-800 border border-slate-700 transition-colors">
+                    <i class="fas fa-chevron-down mr-1"></i> Ocultar
+                </button>
+            </div>
         </div>
-        <div id="fretboard-wrapper" class="flex-1 overflow-x-auto overflow-y-hidden relative px-6 py-4 flex items-center custom-scrollbar">
-            <!-- Grid del Mástil -->
-            <div id="fretboard-grid" class="h-full w-max min-w-full">
-                <!-- Generado dinámicamente vía JavaScript -->
+
+        <!-- Cuerpo del Mástil Scrollable -->
+        <div id="fretboard-body" class="fretboard-scroll overflow-x-auto overflow-y-hidden py-2 px-3">
+            <div id="fretboard-grid" class="min-w-[980px] mx-auto">
+                <!-- Generado dinámicamente por JavaScript -->
             </div>
         </div>
     </section>
 
-    <!-- Sistema de Notificaciones -->
-    <div id="toast" class="fixed bottom-6 right-6 transform translate-y-20 opacity-0 transition-all duration-300 z-50 rounded-lg shadow-2xl overflow-hidden flex items-stretch max-w-sm">
-        <div id="toast-icon-bg" class="w-12 flex items-center justify-center bg-blue-600">
-            <i id="toast-icon" class="fas fa-info-circle text-white text-lg"></i>
+    <!-- Sistema de Notificaciones (Toast) -->
+    <div id="toast" class="fixed bottom-6 right-6 transform translate-y-24 opacity-0 transition-all duration-300 z-50 rounded-lg shadow-2xl overflow-hidden flex items-stretch max-w-sm pointer-events-none">
+        <div id="toast-icon-bg" class="w-11 flex items-center justify-center bg-blue-600">
+            <i id="toast-icon" class="fas fa-info-circle text-white text-base"></i>
         </div>
-        <div class="bg-slate-800 px-4 py-3 flex-1">
+        <div class="bg-slate-800 px-4 py-3 flex-1 border border-l-0 border-slate-700">
             <p id="toast-msg" class="text-sm font-medium text-slate-200"></p>
         </div>
     </div>
@@ -151,7 +285,9 @@
     <script type="module">
         import * as alphaTab from 'https://cdn.jsdelivr.net/npm/@coderline/alphatab@latest/dist/alphaTab.min.mjs';
 
-        // --- SISTEMA DE NOTIFICACIONES ---
+        // =========================================================================
+        // 1. SISTEMA DE NOTIFICACIONES
+        // =========================================================================
         let toastTimeout;
         function showToast(message, type = 'info') {
             const toast = document.getElementById('toast');
@@ -162,44 +298,54 @@
             toastMsg.textContent = message;
 
             if (type === 'error') {
-                toastIconBg.className = 'w-12 flex items-center justify-center bg-red-500';
-                toastIcon.className = 'fas fa-exclamation-triangle text-white text-lg';
+                toastIconBg.className = 'w-11 flex items-center justify-center bg-red-500';
+                toastIcon.className = 'fas fa-exclamation-triangle text-white text-base';
             } else if (type === 'success') {
-                toastIconBg.className = 'w-12 flex items-center justify-center bg-green-500';
-                toastIcon.className = 'fas fa-check text-white text-lg';
+                toastIconBg.className = 'w-11 flex items-center justify-center bg-emerald-500';
+                toastIcon.className = 'fas fa-check text-white text-base';
             } else {
-                toastIconBg.className = 'w-12 flex items-center justify-center bg-blue-500';
-                toastIcon.className = 'fas fa-info-circle text-white text-lg';
+                toastIconBg.className = 'w-11 flex items-center justify-center bg-blue-500';
+                toastIcon.className = 'fas fa-info-circle text-white text-base';
             }
 
-            toast.classList.remove('translate-y-20', 'opacity-0');
-            
+            toast.classList.remove('translate-y-24', 'opacity-0');
             clearTimeout(toastTimeout);
             toastTimeout = setTimeout(() => {
-                toast.classList.add('translate-y-20', 'opacity-0');
-            }, 3500);
+                toast.classList.add('translate-y-24', 'opacity-0');
+            }, 3000);
         }
 
-        // --- CÓDIGO POR DEFECTO ---
-        const defaultText = `\\title "Hello alphaTab"
-\\subtitle "Editame en el panel izquierdo (Ace)"
-\\tempo 90
+        // =========================================================================
+        // 2. CÓDIGO POR DEFECTO (MULTI-TRACK: 2 GUITARRAS)
+        // =========================================================================
+        const defaultText = `\\title "Dúo de Guitarras"
+\\subtitle "Ejemplo Multi-Track en AlphaText"
+\\tempo 100
 .
-:4 0.6 1.6 3.6 0.5 2.5 3.5 0.4 2.4 |
-3.4 0.3 2.3 0.2 1.2 3.2 0.1 1.1 |
-3.1.1`;
+\\track "Guitarra Líder"
+\\instrument 25
+:4 0.6 1.6 3.6 0.5 | 2.5 3.5 0.4 2.4 | 3.1.1
 
-        // --- INICIALIZACIÓN DE ACE EDITOR ---
+\\track "Guitarra Acompañamiento"
+\\instrument 24
+:2 (0.6 2.5 2.4) (3.6 2.5 0.4) | (1.6 3.5 3.4) (3.6 2.5 0.4) | (3.6 2.5 0.4 0.3 3.2 3.1).1`;
+
+        // =========================================================================
+        // 3. INICIALIZACIÓN DE ACE EDITOR
+        // =========================================================================
         const editor = ace.edit("editor");
         editor.setTheme("ace/theme/tomorrow_night_eighties");
-        editor.session.setMode("ace/mode/ruby"); 
+        editor.session.setMode("ace/mode/ruby");
         editor.setFontSize(14);
         editor.setShowPrintMargin(false);
         editor.setValue(defaultText, -1);
 
-        // --- INICIALIZACIÓN DE ALPHATAB ---
+        // =========================================================================
+        // 4. INICIALIZACIÓN DE ALPHATAB (CON SOPORTE MULTI-TRACK)
+        // =========================================================================
         const element = document.getElementById('alphaTab');
         const loadingOverlay = document.getElementById('loading-overlay');
+        const trackCounter = document.getElementById('track-counter');
         
         const api = new alphaTab.AlphaTabApi(element, {
             player: {
@@ -210,6 +356,15 @@
             display: {
                 layoutMode: 'page',
                 staveProfile: 'default'
+            }
+        });
+
+        // Renderizar TODAS las pistas (Tracks) cuando se carga o actualiza la partitura
+        api.scoreLoaded.on((score) => {
+            if (score && score.tracks && score.tracks.length > 0) {
+                const count = score.tracks.length;
+                trackCounter.textContent = `${count} ${count === 1 ? 'pista activa' : 'pistas activas'}`;
+                api.renderTracks(score.tracks);
             }
         });
 
@@ -230,24 +385,30 @@
             loadingOverlay.style.pointerEvents = 'none';
         });
 
+        // Sincronización Ace -> AlphaTab con debounce
         let renderTimeout;
-        editor.session.on('change', () => {
+        function triggerRender(delay = 500) {
             clearTimeout(renderTimeout);
             renderTimeout = setTimeout(() => {
                 const tex = editor.getValue();
                 try {
                     api.tex(tex);
                 } catch (err) {
-                    console.warn("Esperando corrección de sintaxis...");
+                    console.warn("Esperando sintaxis válida...", err);
                 }
-            }, 600); 
-        });
+            }, delay);
+        }
 
+        editor.session.on('change', () => triggerRender(550));
+
+        // Renderizado inicial
         api.tex(defaultText);
 
-        // --- CONTROLES DE REPRODUCCIÓN ---
+        // =========================================================================
+        // 5. CONTROLES DE REPRODUCCIÓN
+        // =========================================================================
         document.getElementById('btn-play').onclick = () => {
-            if (api.playerState !== 1) { 
+            if (api.playerState !== 1) {
                 api.play();
                 showToast("Reproduciendo", "success");
             }
@@ -255,136 +416,262 @@
         document.getElementById('btn-pause').onclick = () => api.pause();
         document.getElementById('btn-stop').onclick = () => api.stop();
 
-        // --- DESCARGAS ---
+        // =========================================================================
+        // 6. CARGA DE ARCHIVOS (BOTÓN Y DRAG & DROP) Y DESCARGA .ALPHATEXT
+        // =========================================================================
+        function loadAlphaTextFile(file) {
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                editor.setValue(e.target.result, -1);
+                showToast(`Archivo "${file.name}" cargado`, "success");
+            };
+            reader.onerror = () => {
+                showToast("No se pudo leer el archivo", "error");
+            };
+            reader.readAsText(file);
+        }
+
+        // Botón Abrir
+        const fileInput = document.getElementById('file-input');
+        document.getElementById('btn-open').onclick = () => fileInput.click();
+        fileInput.onchange = (e) => {
+            if (e.target.files && e.target.files.length > 0) {
+                loadAlphaTextFile(e.target.files[0]);
+                fileInput.value = '';
+            }
+        };
+
+        // Arrastrar y Soltar (Drag & Drop) en el panel del editor
+        const dropzone = document.getElementById('editor-dropzone');
+        const dropOverlay = document.getElementById('drop-overlay');
+        let dragCounter = 0;
+
+        dropzone.addEventListener('dragenter', (e) => {
+            e.preventDefault();
+            dragCounter++;
+            dropOverlay.classList.remove('hidden');
+        });
+
+        dropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+        });
+
+        dropzone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dragCounter--;
+            if (dragCounter <= 0) {
+                dragCounter = 0;
+                dropOverlay.classList.add('hidden');
+            }
+        });
+
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dragCounter = 0;
+            dropOverlay.classList.add('hidden');
+            if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                loadAlphaTextFile(e.dataTransfer.files[0]);
+            }
+        });
+
+        // Descargar .alphatext
         document.getElementById('btn-dl-at').onclick = () => {
             const text = editor.getValue();
-            if (!text.trim()) return showToast("El editor está vacío.", "error");
-
+            if (!text.trim()) {
+                showToast("El editor está vacío.", "error");
+                return;
+            }
             const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
             a.download = 'partitura.alphatext';
+            document.body.appendChild(a);
             a.click();
+            document.body.removeChild(a);
             URL.revokeObjectURL(url);
             showToast("Archivo .alphatext descargado", "success");
         };
 
-        document.getElementById('btn-dl-mid').onclick = () => {
-            if (!api.score) return showToast("No hay partitura cargada para exportar.", "error");
+        // =========================================================================
+        // 7. MÁSTIL INTERACTIVO DE 6 CUERDAS Y 19 TRASTES
+        // =========================================================================
+        const TOTAL_FRETS = 19; // Trastes 0 (al aire) hasta 19
+        // Cuerdas de arriba (1 = Mi agudo) hacia abajo (6 = Mi grave)
+        const STRINGS = [
+            { num: 1, name: 'E4', label: '1ª (Mi)', midiBase: 64, height: 1.5, color: '#e2e8f0' },
+            { num: 2, name: 'B3', label: '2ª (Si)', midiBase: 59, height: 1.8, color: '#cbd5e1' },
+            { num: 3, name: 'G3', label: '3ª (Sol)', midiBase: 55, height: 2.2, color: '#d4af37' },
+            { num: 4, name: 'D3', label: '4ª (Re)', midiBase: 50, height: 2.7, color: '#c59b27' },
+            { num: 5, name: 'A2', label: '5ª (La)', midiBase: 45, height: 3.3, color: '#b48a1e' },
+            { num: 6, name: 'E2', label: '6ª (Mi)', midiBase: 40, height: 4.0, color: '#9a7316' }
+        ];
+        const NOTE_NAMES = ['Do', 'Do#', 'Re', 'Re#', 'Mi', 'Fa', 'Fa#', 'Sol', 'Sol#', 'La', 'La#', 'Si'];
+        const SINGLE_INLAYS = [3, 5, 7, 9, 15, 17, 19];
+        const DOUBLE_INLAY = 12;
 
+        // Sintetizador ligero Web Audio para previsualizar la nota al hacer clic en el mástil
+        let audioCtx = null;
+        function playFretNote(midiNote) {
+            if (!document.getElementById('fret-sound-toggle').checked) return;
             try {
-                const midiBytes = alphaTab.exporter.MidiFileExporter.export(api.score);
-                const blob = new Blob([new Uint8Array(midiBytes)], { type: 'audio/midi' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'audio_general.mid';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-                showToast("MIDI general descargado exitosamente", "success");
-            } catch (error) {
-                console.error("Error al exportar MIDI:", error);
-                showToast("Hubo un error al generar el archivo MIDI.", "error");
-            }
-        };
-
-        // --- INICIALIZACIÓN DEL MÁSTIL INTERACTIVO ---
-        function initFretboard() {
-            const container = document.getElementById('fretboard-grid');
-            container.innerHTML = '';
-            
-            // Puntos guía estándar en una guitarra (Inlays)
-            const singleDots = [3, 5, 7, 9, 15, 17, 19];
-            const doubleDots = [12];
-            const stringNames = ['e', 'B', 'G', 'D', 'A', 'E']; // Cuerda 1 a 6
-
-            // Generar 6 cuerdas y 20 posiciones (0 = Al aire, 1 al 19 = Trastes)
-            for (let s = 1; s <= 6; s++) {
-                for (let f = 0; f <= 19; f++) {
-                    const cell = document.createElement('button');
-                    cell.className = 'relative flex items-center justify-center group outline-none border-none hover:bg-white/10 transition-colors w-full h-full p-0 m-0';
-                    cell.style.cursor = 'pointer';
-                    
-                    // --- Diseño Visual ---
-
-                    // Línea horizontal (Cuerda)
-                    const stringLine = document.createElement('div');
-                    const thickness = 1 + (s * 0.4); // Cuerdas más graves = más gruesas
-                    const stringColor = s <= 2 ? 'bg-slate-300' : 'bg-slate-400'; // Lisas vs Entorchadas
-                    stringLine.className = `absolute w-full z-10 pointer-events-none shadow-sm ${stringColor}`;
-                    stringLine.style.height = `${thickness}px`;
-                    cell.appendChild(stringLine);
-
-                    // Línea vertical (Traste o Cejuela)
-                    if (f > 0) {
-                        const fretLine = document.createElement('div');
-                        // Efecto metálico del traste
-                        fretLine.className = 'absolute right-0 top-0 bottom-0 w-[3px] bg-gradient-to-r from-slate-400 via-slate-300 to-slate-500 z-0 pointer-events-none shadow-[-1px_0_2px_rgba(0,0,0,0.7)]';
-                        cell.appendChild(fretLine);
-                    } else {
-                        // Traste 0 (Cejuela / Nut)
-                        const nutLine = document.createElement('div');
-                        nutLine.className = 'absolute right-0 top-0 bottom-0 w-2 bg-slate-200 z-0 pointer-events-none shadow-md border-l border-slate-400';
-                        cell.appendChild(nutLine);
-                    }
-
-                    // Puntos Guía (Inlays de Nácar)
-                    if (f > 0) {
-                        // Puntos simples (Entre cuerda 3 y 4)
-                        if (singleDots.includes(f) && s === 3) {
-                            const dot = document.createElement('div');
-                            dot.className = 'absolute w-3.5 h-3.5 rounded-full bg-slate-200 top-[100%] translate-y-[-50%] z-0 pointer-events-none shadow-[inset_0_0_4px_rgba(0,0,0,0.3)] opacity-80';
-                            cell.appendChild(dot);
-                        }
-                        // Punto doble (Traste 12 - en cuerdas 2 y 4)
-                        if (doubleDots.includes(f) && (s === 2 || s === 4)) {
-                            const dot = document.createElement('div');
-                            dot.className = 'absolute w-3.5 h-3.5 rounded-full bg-slate-200 top-[100%] translate-y-[-50%] z-0 pointer-events-none shadow-[inset_0_0_4px_rgba(0,0,0,0.3)] opacity-80';
-                            cell.appendChild(dot);
-                        }
-                    }
-
-                    // Etiqueta de afinación en el traste 0 (cuerda al aire)
-                    if (f === 0) {
-                        const label = document.createElement('div');
-                        label.className = 'absolute left-2 text-[11px] font-bold text-slate-300 z-20 pointer-events-none drop-shadow-md';
-                        label.innerText = stringNames[s - 1];
-                        cell.appendChild(label);
-                    }
-
-                    // Indicador azul al hacer Hover
-                    const hoverDot = document.createElement('div');
-                    hoverDot.className = 'w-6 h-6 rounded-full bg-blue-600 opacity-0 group-hover:opacity-100 transition-all z-20 flex items-center justify-center text-[10px] text-white font-bold pointer-events-none scale-75 group-hover:scale-100 shadow-[0_0_8px_rgba(37,99,235,0.8)]';
-                    hoverDot.innerText = f;
-                    cell.appendChild(hoverDot);
-
-                    // --- Funcionalidad (Eventos) ---
-                    cell.onclick = (e) => {
-                        e.preventDefault();
-                        
-                        // Formato alphaTab (ej. 3.1)
-                        const textToInsert = `${f}.${s} `;
-                        editor.insert(textToInsert);
-                        editor.focus();
-                        
-                        // Efecto visual de pulsación
-                        hoverDot.classList.add('bg-green-500', 'scale-110');
-                        setTimeout(() => {
-                            hoverDot.classList.remove('bg-green-500', 'scale-110');
-                        }, 150);
-                    };
-
-                    container.appendChild(cell);
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 }
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                const now = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(440 * Math.pow(2, (midiNote - 69) / 12), now);
+
+                gain.gain.setValueAtTime(0.001, now);
+                gain.gain.linearRampToValueAtTime(0.22, now + 0.015);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.65);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.7);
+            } catch (err) {
+                console.warn("Audio preview no disponible:", err);
             }
         }
 
-        // Construir mástil al cargar
-        initFretboard();
+        // Inserta la posición "traste.cuerda" en el cursor actual del editor Ace
+        function insertPositionIntoEditor(fret, stringNum) {
+            const token = `${fret}.${stringNum}`;
+            const cursor = editor.getCursorPosition();
+            const lineText = editor.session.getLine(cursor.row);
+            const charBefore = cursor.column > 0 ? lineText[cursor.column - 1] : '';
+            const charAfter = cursor.column < lineText.length ? lineText[cursor.column] : '';
 
+            // Agregar espacio automático si hay texto pegado antes o después
+            const prefix = (charBefore && !/[\s(\[:]/.test(charBefore)) ? ' ' : '';
+            const suffix = (!charAfter || !/[\s)\]|.]/.test(charAfter)) ? ' ' : '';
+
+            editor.session.insert(cursor, `${prefix}${token}${suffix}`);
+            editor.focus();
+        }
+
+        function buildFretboard() {
+            const grid = document.getElementById('fretboard-grid');
+            const hoverInfo = document.getElementById('fret-hover-info');
+            grid.innerHTML = '';
+
+            // Fila de números de traste (0 a 19)
+            const headerRow = document.createElement('div');
+            headerRow.className = 'flex items-center mb-1 pl-16';
+            for (let f = 0; f <= TOTAL_FRETS; f++) {
+                const cell = document.createElement('div');
+                cell.className = `${f === 0 ? 'w-11' : 'flex-1'} text-center text-[10px] font-mono ${
+                    SINGLE_INLAYS.includes(f) || f === DOUBLE_INLAY
+                        ? 'text-amber-400 font-bold'
+                        : 'text-slate-500'
+                }`;
+                cell.textContent = f;
+                headerRow.appendChild(cell);
+            }
+            grid.appendChild(headerRow);
+
+            // Contenedor principal del diapasón
+            const board = document.createElement('div');
+            board.className = 'fretboard-wood rounded-lg border border-slate-700 overflow-hidden relative';
+
+            STRINGS.forEach((str, strIdx) => {
+                const row = document.createElement('div');
+                row.className = 'flex items-stretch h-6 relative';
+
+                // Etiqueta de cuerda a la izquierda
+                const label = document.createElement('div');
+                label.className = 'w-16 shrink-0 bg-slate-900 border-r border-slate-700 flex items-center justify-between px-2 text-[11px] font-medium text-slate-300';
+                label.innerHTML = `<span>${str.label}</span>`;
+                row.appendChild(label);
+
+                // Trastes 0 a 19
+                for (let f = 0; f <= TOTAL_FRETS; f++) {
+                    const fretCell = document.createElement('div');
+                    fretCell.className = f === 0
+                        ? 'w-11 shrink-0 nut-column relative'
+                        : 'flex-1 fret-cell';
+
+                    // Inlays (puntos de referencia nacarados)
+                    if (SINGLE_INLAYS.includes(f) && strIdx === 2) {
+                        const dot = document.createElement('div');
+                        dot.className = 'inlay-dot';
+                        dot.style.left = '50%';
+                        dot.style.bottom = '-6px';
+                        dot.style.transform = 'translateX(-50%)';
+                        fretCell.appendChild(dot);
+                    }
+                    if (f === DOUBLE_INLAY && (strIdx === 1 || strIdx === 3)) {
+                        const dot = document.createElement('div');
+                        dot.className = 'inlay-dot';
+                        dot.style.left = '50%';
+                        dot.style.bottom = '-6px';
+                        dot.style.transform = 'translateX(-50%)';
+                        fretCell.appendChild(dot);
+                    }
+
+                    // Cuerda metálica visual
+                    const wire = document.createElement('div');
+                    wire.className = 'string-wire';
+                    wire.style.height = `${str.height}px`;
+                    wire.style.backgroundColor = str.color;
+                    fretCell.appendChild(wire);
+
+                    // Zona interactiva de clic
+                    const hit = document.createElement('div');
+                    hit.className = 'fret-hit';
+                    const posText = `${f}.${str.num}`;
+                    const midiNote = str.midiBase + f;
+                    const noteLabel = NOTE_NAMES[midiNote % 12];
+
+                    const badge = document.createElement('span');
+                    badge.className = 'fret-badge';
+                    badge.textContent = posText;
+                    hit.appendChild(badge);
+
+                    hit.addEventListener('mouseenter', () => {
+                        hoverInfo.innerHTML = `Cuerda <strong class="text-white">${str.num}</strong> · Traste <strong class="text-white">${f}</strong> (<span class="text-amber-400">${noteLabel}</span>) → Inserta <code class="bg-slate-800 px-1.5 py-0.5 rounded text-blue-300">${posText}</code>`;
+                    });
+
+                    hit.addEventListener('click', () => {
+                        playFretNote(midiNote);
+                        insertPositionIntoEditor(f, str.num);
+                    });
+
+                    fretCell.appendChild(hit);
+                    row.appendChild(fretCell);
+                }
+
+                board.appendChild(row);
+            });
+
+            grid.appendChild(board);
+        }
+
+        buildFretboard();
+
+        // Botón para colapsar / expandir el mástil
+        const btnToggleFretboard = document.getElementById('btn-toggle-fretboard');
+        const fretboardBody = document.getElementById('fretboard-body');
+        let fretboardVisible = true;
+
+        btnToggleFretboard.onclick = () => {
+            fretboardVisible = !fretboardVisible;
+            if (fretboardVisible) {
+                fretboardBody.classList.remove('hidden');
+                btnToggleFretboard.innerHTML = '<i class="fas fa-chevron-down mr-1"></i> Ocultar';
+            } else {
+                fretboardBody.classList.add('hidden');
+                btnToggleFretboard.innerHTML = '<i class="fas fa-chevron-up mr-1"></i> Mostrar';
+            }
+            editor.resize();
+        };
     </script>
 </body>
 </html>
