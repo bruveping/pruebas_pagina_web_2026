@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AlphaText Studio</title>
+    <title>AlphaText Studio - Fretboard</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -37,13 +37,30 @@
         }
         .btn-primary { @apply bg-blue-600 text-white hover:bg-blue-700 shadow-blue-500/30; }
         .btn-secondary { @apply bg-slate-700 text-white hover:bg-slate-600 shadow-slate-900/30; }
-        .btn-control { @apply bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white border border-slate-700; }
         
-        /* Scrollbar personalizado para el visor */
+        /* Scrollbar personalizado */
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #1e293b; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #475569; border-radius: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        
         .alphaTab-wrapper::-webkit-scrollbar { width: 8px; }
         .alphaTab-wrapper::-webkit-scrollbar-track { background: #f1f5f9; }
         .alphaTab-wrapper::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         .alphaTab-wrapper::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* Estilos del Mástil Interactivo */
+        #fretboard-grid {
+            display: grid;
+            /* Columna 1 (Traste 0/Cejuela) más estrecha, resto de los 19 trastes uniformes */
+            grid-template-columns: 45px repeat(19, 65px); 
+            grid-template-rows: repeat(6, 1fr);
+            background: linear-gradient(90deg, #1a100c, #2c1e16, #1a100c); /* Madera oscura */
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.9);
+            border-radius: 4px;
+            overflow: hidden;
+            border: 1px solid #000;
+        }
     </style>
 </head>
 <body class="flex flex-col h-screen bg-slate-900 text-white">
@@ -105,7 +122,21 @@
         </div>
     </main>
 
-    <!-- Sistema de Notificaciones (Reemplazo de alert) -->
+    <!-- Mástil Interactivo (Fretboard) -->
+    <section class="h-56 bg-slate-900 border-t border-slate-700 flex flex-col shrink-0 shadow-[0_-4px_15px_rgba(0,0,0,0.3)] z-20">
+        <div class="flex justify-between px-4 py-2 bg-slate-800 border-b border-slate-700 text-xs font-semibold text-slate-400 uppercase tracking-wider items-center">
+            <span class="flex items-center"><i class="fas fa-guitar mr-2"></i> Mástil Interactivo (Haz clic para insertar)</span>
+            <span class="text-slate-500 font-normal">Trastes 0-19</span>
+        </div>
+        <div id="fretboard-wrapper" class="flex-1 overflow-x-auto overflow-y-hidden relative px-6 py-4 flex items-center custom-scrollbar">
+            <!-- Grid del Mástil -->
+            <div id="fretboard-grid" class="h-full w-max min-w-full">
+                <!-- Generado dinámicamente vía JavaScript -->
+            </div>
+        </div>
+    </section>
+
+    <!-- Sistema de Notificaciones -->
     <div id="toast" class="fixed bottom-6 right-6 transform translate-y-20 opacity-0 transition-all duration-300 z-50 rounded-lg shadow-2xl overflow-hidden flex items-stretch max-w-sm">
         <div id="toast-icon-bg" class="w-12 flex items-center justify-center bg-blue-600">
             <i id="toast-icon" class="fas fa-info-circle text-white text-lg"></i>
@@ -130,7 +161,6 @@
 
             toastMsg.textContent = message;
 
-            // Configurar estilos según el tipo
             if (type === 'error') {
                 toastIconBg.className = 'w-12 flex items-center justify-center bg-red-500';
                 toastIcon.className = 'fas fa-exclamation-triangle text-white text-lg';
@@ -142,7 +172,6 @@
                 toastIcon.className = 'fas fa-info-circle text-white text-lg';
             }
 
-            // Mostrar
             toast.classList.remove('translate-y-20', 'opacity-0');
             
             clearTimeout(toastTimeout);
@@ -163,7 +192,6 @@
         // --- INICIALIZACIÓN DE ACE EDITOR ---
         const editor = ace.edit("editor");
         editor.setTheme("ace/theme/tomorrow_night_eighties");
-        // No hay un modo estricto de alphatext, pero text o ruby ofrecen colores agradables
         editor.session.setMode("ace/mode/ruby"); 
         editor.setFontSize(14);
         editor.setShowPrintMargin(false);
@@ -185,7 +213,6 @@
             }
         });
 
-        // Eventos de carga de alphaTab para UI
         api.renderStarted.on(() => {
             loadingOverlay.style.opacity = '1';
             loadingOverlay.style.pointerEvents = 'all';
@@ -203,8 +230,6 @@
             loadingOverlay.style.pointerEvents = 'none';
         });
 
-        // --- SINCRONIZACIÓN ACE -> ALPHATAB ---
-        // Usamos debounce para no renderizar en cada pulsación (mejora rendimiento)
         let renderTimeout;
         editor.session.on('change', () => {
             clearTimeout(renderTimeout);
@@ -215,30 +240,22 @@
                 } catch (err) {
                     console.warn("Esperando corrección de sintaxis...");
                 }
-            }, 600); // Espera 600ms después de que dejes de escribir
+            }, 600); 
         });
 
-        // Renderizado Inicial
         api.tex(defaultText);
 
         // --- CONTROLES DE REPRODUCCIÓN ---
         document.getElementById('btn-play').onclick = () => {
-            if (api.playerState !== 1) { // 1 = playing
+            if (api.playerState !== 1) { 
                 api.play();
                 showToast("Reproduciendo", "success");
             }
         };
-        
-        document.getElementById('btn-pause').onclick = () => {
-            api.pause();
-        };
-        
-        document.getElementById('btn-stop').onclick = () => {
-            api.stop();
-        };
+        document.getElementById('btn-pause').onclick = () => api.pause();
+        document.getElementById('btn-stop').onclick = () => api.stop();
 
         // --- DESCARGAS ---
-        // Descargar .alphatext
         document.getElementById('btn-dl-at').onclick = () => {
             const text = editor.getValue();
             if (!text.trim()) return showToast("El editor está vacío.", "error");
@@ -253,17 +270,11 @@
             showToast("Archivo .alphatext descargado", "success");
         };
 
-        // Descargar Audio MIDI (.mid)
         document.getElementById('btn-dl-mid').onclick = () => {
-            if (!api.score) {
-                showToast("No hay partitura cargada para exportar.", "error");
-                return;
-            }
+            if (!api.score) return showToast("No hay partitura cargada para exportar.", "error");
 
             try {
-                // alphaTab expone la funcionalidad MidiFileExporter para convertir el Score a bytes
                 const midiBytes = alphaTab.exporter.MidiFileExporter.export(api.score);
-                
                 const blob = new Blob([new Uint8Array(midiBytes)], { type: 'audio/midi' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -273,13 +284,106 @@
                 a.click();
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
-                
                 showToast("MIDI general descargado exitosamente", "success");
             } catch (error) {
                 console.error("Error al exportar MIDI:", error);
                 showToast("Hubo un error al generar el archivo MIDI.", "error");
             }
         };
+
+        // --- INICIALIZACIÓN DEL MÁSTIL INTERACTIVO ---
+        function initFretboard() {
+            const container = document.getElementById('fretboard-grid');
+            container.innerHTML = '';
+            
+            // Puntos guía estándar en una guitarra (Inlays)
+            const singleDots = [3, 5, 7, 9, 15, 17, 19];
+            const doubleDots = [12];
+            const stringNames = ['e', 'B', 'G', 'D', 'A', 'E']; // Cuerda 1 a 6
+
+            // Generar 6 cuerdas y 20 posiciones (0 = Al aire, 1 al 19 = Trastes)
+            for (let s = 1; s <= 6; s++) {
+                for (let f = 0; f <= 19; f++) {
+                    const cell = document.createElement('button');
+                    cell.className = 'relative flex items-center justify-center group outline-none border-none hover:bg-white/10 transition-colors w-full h-full p-0 m-0';
+                    cell.style.cursor = 'pointer';
+                    
+                    // --- Diseño Visual ---
+
+                    // Línea horizontal (Cuerda)
+                    const stringLine = document.createElement('div');
+                    const thickness = 1 + (s * 0.4); // Cuerdas más graves = más gruesas
+                    const stringColor = s <= 2 ? 'bg-slate-300' : 'bg-slate-400'; // Lisas vs Entorchadas
+                    stringLine.className = `absolute w-full z-10 pointer-events-none shadow-sm ${stringColor}`;
+                    stringLine.style.height = `${thickness}px`;
+                    cell.appendChild(stringLine);
+
+                    // Línea vertical (Traste o Cejuela)
+                    if (f > 0) {
+                        const fretLine = document.createElement('div');
+                        // Efecto metálico del traste
+                        fretLine.className = 'absolute right-0 top-0 bottom-0 w-[3px] bg-gradient-to-r from-slate-400 via-slate-300 to-slate-500 z-0 pointer-events-none shadow-[-1px_0_2px_rgba(0,0,0,0.7)]';
+                        cell.appendChild(fretLine);
+                    } else {
+                        // Traste 0 (Cejuela / Nut)
+                        const nutLine = document.createElement('div');
+                        nutLine.className = 'absolute right-0 top-0 bottom-0 w-2 bg-slate-200 z-0 pointer-events-none shadow-md border-l border-slate-400';
+                        cell.appendChild(nutLine);
+                    }
+
+                    // Puntos Guía (Inlays de Nácar)
+                    if (f > 0) {
+                        // Puntos simples (Entre cuerda 3 y 4)
+                        if (singleDots.includes(f) && s === 3) {
+                            const dot = document.createElement('div');
+                            dot.className = 'absolute w-3.5 h-3.5 rounded-full bg-slate-200 top-[100%] translate-y-[-50%] z-0 pointer-events-none shadow-[inset_0_0_4px_rgba(0,0,0,0.3)] opacity-80';
+                            cell.appendChild(dot);
+                        }
+                        // Punto doble (Traste 12 - en cuerdas 2 y 4)
+                        if (doubleDots.includes(f) && (s === 2 || s === 4)) {
+                            const dot = document.createElement('div');
+                            dot.className = 'absolute w-3.5 h-3.5 rounded-full bg-slate-200 top-[100%] translate-y-[-50%] z-0 pointer-events-none shadow-[inset_0_0_4px_rgba(0,0,0,0.3)] opacity-80';
+                            cell.appendChild(dot);
+                        }
+                    }
+
+                    // Etiqueta de afinación en el traste 0 (cuerda al aire)
+                    if (f === 0) {
+                        const label = document.createElement('div');
+                        label.className = 'absolute left-2 text-[11px] font-bold text-slate-300 z-20 pointer-events-none drop-shadow-md';
+                        label.innerText = stringNames[s - 1];
+                        cell.appendChild(label);
+                    }
+
+                    // Indicador azul al hacer Hover
+                    const hoverDot = document.createElement('div');
+                    hoverDot.className = 'w-6 h-6 rounded-full bg-blue-600 opacity-0 group-hover:opacity-100 transition-all z-20 flex items-center justify-center text-[10px] text-white font-bold pointer-events-none scale-75 group-hover:scale-100 shadow-[0_0_8px_rgba(37,99,235,0.8)]';
+                    hoverDot.innerText = f;
+                    cell.appendChild(hoverDot);
+
+                    // --- Funcionalidad (Eventos) ---
+                    cell.onclick = (e) => {
+                        e.preventDefault();
+                        
+                        // Formato alphaTab (ej. 3.1)
+                        const textToInsert = `${f}.${s} `;
+                        editor.insert(textToInsert);
+                        editor.focus();
+                        
+                        // Efecto visual de pulsación
+                        hoverDot.classList.add('bg-green-500', 'scale-110');
+                        setTimeout(() => {
+                            hoverDot.classList.remove('bg-green-500', 'scale-110');
+                        }, 150);
+                    };
+
+                    container.appendChild(cell);
+                }
+            }
+        }
+
+        // Construir mástil al cargar
+        initFretboard();
 
     </script>
 </body>
