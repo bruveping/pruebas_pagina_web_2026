@@ -28,6 +28,12 @@ https://bruveping.github.io/pruebas_pagina_web_2026/visor_codigo_strudel_json/
 alpha_Text_Studio [AlphaText Studio](https://bruveping.github.io/pruebas_pagina_web_2026/alpha_Text_Studio/) <br>
 https://bruveping.github.io/pruebas_pagina_web_2026/alpha_Text_Studio/
 
+## alphatext_analizador
+alphatext_analizador [alphatext_analizador](https://bruveping.github.io/pruebas_pagina_web_2026/alphatext_analizador/) <br>
+https://bruveping.github.io/pruebas_pagina_web_2026/alphatext_analizador/
+
+
+
 
 
 
