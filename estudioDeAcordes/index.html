@@ -38,9 +38,10 @@ input[type=color]{padding:0;border:0;background:none;cursor:pointer}
   <div class="flex flex-wrap gap-2">
    <button class="btn" id="undo" title="Deshacer (Ctrl+Z)"><i class="fa-solid fa-rotate-left"></i></button>
    <button class="btn" id="redo" title="Rehacer (Ctrl+Y)"><i class="fa-solid fa-rotate-right"></i></button>
-   <button class="btn" id="reset"><i class="fa-solid fa-file"></i><span class="hidden sm:inline">Reiniciar</span></button>
-   <button class="btn" id="hCopy"><i class="fa-regular fa-clipboard"></i><span class="hidden sm:inline">Copiar</span></button>
-   <button class="btn-p" id="hPng"><i class="fa-solid fa-download"></i>Descargar PNG</button>
+   <button class="btn" id="reset" title="Reiniciar diagrama"><i class="fa-solid fa-file"></i><span class="hidden sm:inline">Reiniciar</span></button>
+   <button class="btn" id="hCopy" title="Copiar imagen al portapapeles" aria-label="Copiar imagen al portapapeles"><i class="fa-regular fa-clipboard"></i></button>
+   <button class="btn" id="hSvg" title="Descargar SVG"><i class="fa-solid fa-download"></i>SVG</button>
+   <button class="btn-p" id="hPng" title="Descargar PNG"><i class="fa-solid fa-download"></i>PNG</button>
   </div>
  </div>
 </header>
@@ -203,7 +204,7 @@ class ChordDiagramApp{
   $('#undo').onclick=()=>this.undo();$('#redo').onclick=()=>this.redo();
   $('#png').onclick=$('#hPng').onclick=()=>this.dlPng();
   $('#copy').onclick=$('#hCopy').onclick=()=>this.copyPng();
-  $('#svgDl').onclick=()=>{this.dl(new Blob([this.svgStr()],{type:'image/svg+xml'}),this.fname('svg'));this.toast('SVG descargado')};
+  $('#svgDl').onclick=$('#hSvg').onclick=()=>{this.dl(new Blob([this.svgStr()],{type:'image/svg+xml'}),this.fname('svg'));this.toast('SVG descargado')};
   $('#jsonDl').onclick=()=>{this.dl(new Blob([JSON.stringify(this.S,null,1)],{type:'application/json'}),this.fname('json'));this.toast('Diagrama guardado como JSON')};
   $('#jsonUp').onclick=()=>$('#file').click();
   $('#file').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();
