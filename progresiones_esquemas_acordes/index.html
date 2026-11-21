@@ -4,6 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Visor y Creador de PDFs de Acordes</title>
+  
+  <!-- Favicon SVG imaginativo y sencillo (Mástil con acorde) -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%230f172a'/%3E%3Cpath d='M16 14h32v36H16z' fill='none' stroke='%23475569' stroke-width='2.5' rx='3'/%3E%3Cline x1='16' y1='18' x2='48' y2='18' stroke='%23f8fafc' stroke-width='4' stroke-linecap='round'/%3E%3Cline x1='24' y1='18' x2='24' y2='50' stroke='%2364748b' stroke-width='2'/%3E%3Cline x1='32' y1='18' x2='32' y2='50' stroke='%2364748b' stroke-width='2'/%3E%3Cline x1='40' y1='18' x2='40' y2='50' stroke='%2364748b' stroke-width='2'/%3E%3Cline x1='16' y1='29' x2='48' y2='29' stroke='%23475569' stroke-width='2'/%3E%3Cline x1='16' y1='40' x2='48' y2='40' stroke='%23475569' stroke-width='2'/%3E%3Ccircle cx='24' cy='34.5' r='4.5' fill='%2338bdf8'/%3E%3Ccircle cx='32' cy='23.5' r='4.5' fill='%23f8fafc'/%3E%3Ccircle cx='40' cy='45' r='4.5' fill='%23e11d48'/%3E%3C/svg%3E" />
+
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -47,6 +51,23 @@
       width: 100% !important;
       height: auto !important;
       display: block;
+      pointer-events: none; /* Evita interferencias al arrastrar la tarjeta */
+    }
+
+    /* Estilos de arrastrar y soltar tarjetas */
+    .chord-card {
+      cursor: grab;
+    }
+    .chord-card:active {
+      cursor: grabbing;
+    }
+    .chord-card.dragging {
+      opacity: 0.45;
+      transform: scale(0.97);
+    }
+    .chord-card.drag-over {
+      border-color: #0284c7 !important;
+      box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.35) !important;
     }
 
     /* Print Specific Formatting */
@@ -119,7 +140,7 @@
         </div>
         <div>
           <h1 class="text-lg font-bold text-slate-900 dark:text-white leading-tight">Gestor de Acordes SVG</h1>
-          <p class="text-xs text-slate-500 dark:text-slate-400">Organiza tus diagramas en columnas y exporta a PDF</p>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Organiza tus diagramas en columnas, reordénalos y exporta a PDF</p>
         </div>
       </div>
 
@@ -225,7 +246,7 @@
 
       <!-- Page Footer -->
       <div class="mt-12 pt-4 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center text-[10px] text-slate-400">
-        <span>Hoja de Trabajo de Acordes</span>
+        <span>Hoja de Trabajo de Acordes • Arrastra las tarjetas para reordenar</span>
         <span id="card-count-footer">9 Acordes</span>
       </div>
 
@@ -238,6 +259,7 @@
     let chordItems = [];
     let currentCols = 3;
     let currentZoom = 100;
+    let draggedIndex = null;
 
     // DOM Elements
     const chordGrid = document.getElementById('chord-grid');
@@ -261,7 +283,7 @@
       { name: "09_Em7_D.svg", svg: `<svg viewBox="0 0 240 120" xmlns="http://www.w3.org/2000/svg"><rect width="240" height="120" fill="#f8fafc" rx="6"/><line x1="30" y1="30" x2="210" y2="30" stroke="#090d16" stroke-width="4"/><line x1="30" y1="90" x2="210" y2="90" stroke="#090d16" stroke-width="4"/><line x1="36" y1="30" x2="36" y2="90" stroke="#090d16" stroke-width="4"/><line x1="71" y1="30" x2="71" y2="90" stroke="#090d16" stroke-width="3.5"/><line x1="106" y1="30" x2="106" y2="90" stroke="#090d16" stroke-width="3"/><line x1="141" y1="30" x2="141" y2="90" stroke="#090d16" stroke-width="2.5"/><line x1="176" y1="30" x2="176" y2="90" stroke="#090d16" stroke-width="2"/><line x1="202" y1="30" x2="202" y2="90" stroke="#090d16" stroke-width="1.5"/><circle cx="95" cy="60" r="5" fill="#cbd5e1"/><circle cx="155" cy="60" r="5" fill="#cbd5e1"/><circle cx="106" cy="60" r="13" fill="#0f172a"/><circle cx="141" cy="60" r="13" fill="#0f172a"/><circle cx="176" cy="60" r="13" fill="#0f172a"/><circle cx="202" cy="60" r="13" fill="#e11d48"/></svg>` }
     ];
 
-    // Format Title from filename (e.g., "01_Dm7_C.svg" -> "01. Dm7 / C")
+    // Format Title from filename (e.g., "01_Dm7_C.svg" -> "01 Dm7 C")
     function cleanFilename(filename) {
       let name = filename.replace(/\.svg$/i, '');
       name = name.replace(/_/g, ' ');
@@ -289,9 +311,35 @@
         emptyState.classList.remove('flex');
 
         chordGrid.innerHTML = chordItems.map((item, index) => `
-          <div class="chord-card bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl p-3 flex flex-col justify-between group relative shadow-xs hover:shadow-md transition">
+          <div 
+            draggable="true"
+            data-index="${index}"
+            ondragstart="handleCardDragStart(event, ${index})"
+            ondragover="handleCardDragOver(event)"
+            ondragleave="handleCardDragLeave(event)"
+            ondrop="handleCardDrop(event, ${index})"
+            ondragend="handleCardDragEnd(event)"
+            class="chord-card bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl p-3 flex flex-col justify-between group relative shadow-xs hover:shadow-md transition"
+          >
             
-            <!-- Quick Actions (Delete) -->
+            <!-- Drag Handle & Reorder Quick Actions -->
+            <div class="card-actions absolute top-2 left-2 opacity-0 group-hover:opacity-100 flex items-center gap-1 transition z-10">
+              <span class="p-1.5 bg-slate-200/90 dark:bg-slate-700/90 text-slate-600 dark:text-slate-300 rounded-lg text-xs cursor-grab" title="Arrastrar para reordenar">
+                <i class="fa-solid fa-grip-vertical"></i>
+              </span>
+              ${index > 0 ? `
+                <button onclick="moveChord(${index}, -1)" class="p-1.5 bg-slate-200/90 dark:bg-slate-700/90 hover:bg-brand-500 hover:text-white text-slate-600 dark:text-slate-300 rounded-lg text-xs transition" title="Mover antes">
+                  <i class="fa-solid fa-chevron-left"></i>
+                </button>
+              ` : ''}
+              ${index < chordItems.length - 1 ? `
+                <button onclick="moveChord(${index}, 1)" class="p-1.5 bg-slate-200/90 dark:bg-slate-700/90 hover:bg-brand-500 hover:text-white text-slate-600 dark:text-slate-300 rounded-lg text-xs transition" title="Mover después">
+                  <i class="fa-solid fa-chevron-right"></i>
+                </button>
+              ` : ''}
+            </div>
+
+            <!-- Delete Action -->
             <button 
               onclick="removeChord('${item.id}')" 
               class="card-actions absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-1.5 bg-red-500 text-white rounded-lg text-xs transition shadow-md hover:bg-red-600 z-10"
@@ -321,6 +369,62 @@
       fileCountBadge.textContent = `${chordItems.length} SVG cargados`;
       cardCountFooter.textContent = `${chordItems.length} Acordes`;
     }
+
+    // Reorder logic via Drag & Drop
+    window.handleCardDragStart = function(e, index) {
+      // Evita iniciar drag si se está seleccionando texto en el input
+      if (document.activeElement.tagName === 'INPUT') {
+        e.preventDefault();
+        return;
+      }
+      draggedIndex = index;
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', index);
+      setTimeout(() => e.target.classList.add('dragging'), 0);
+    };
+
+    window.handleCardDragOver = function(e) {
+      e.preventDefault();
+      if (draggedIndex === null) return;
+      e.dataTransfer.dropEffect = 'move';
+      const card = e.target.closest('.chord-card');
+      if (card) card.classList.add('drag-over');
+    };
+
+    window.handleCardDragLeave = function(e) {
+      const card = e.target.closest('.chord-card');
+      if (card) card.classList.remove('drag-over');
+    };
+
+    window.handleCardDrop = function(e, targetIndex) {
+      e.preventDefault();
+      e.stopPropagation(); // Evita disparar el dropZone de subida de archivos
+      const card = e.target.closest('.chord-card');
+      if (card) card.classList.remove('drag-over');
+
+      if (draggedIndex !== null && draggedIndex !== targetIndex) {
+        const [movedItem] = chordItems.splice(draggedIndex, 1);
+        chordItems.splice(targetIndex, 0, movedItem);
+        renderGrid();
+      }
+      draggedIndex = null;
+    };
+
+    window.handleCardDragEnd = function(e) {
+      draggedIndex = null;
+      document.querySelectorAll('.chord-card').forEach(c => {
+        c.classList.remove('dragging', 'drag-over');
+      });
+    };
+
+    // Reorder logic via arrow buttons
+    window.moveChord = function(index, direction) {
+      const newIndex = index + direction;
+      if (newIndex < 0 || newIndex >= chordItems.length) return;
+      const [movedItem] = chordItems.splice(index, 1);
+      chordItems.splice(newIndex, 0, movedItem);
+      renderGrid();
+    };
 
     // Remove single chord
     window.removeChord = function(id) {
@@ -368,34 +472,45 @@
     document.getElementById('zoom-out-btn').addEventListener('click', () => updateZoom(currentZoom - 10));
     document.getElementById('zoom-reset-btn').addEventListener('click', () => updateZoom(100));
 
-    // Read and Process File Uploads
+    // Read and Process File Uploads (con orden natural garantizado)
     function handleFiles(files) {
-      const svgFiles = Array.from(files).filter(f => f.type === 'image/svg+xml' || f.name.endsWith('.svg'));
+      const svgFiles = Array.from(files)
+        .filter(f => f.type === 'image/svg+xml' || f.name.endsWith('.svg'))
+        .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+      
       if (svgFiles.length === 0) return;
 
-      let pending = svgFiles.length;
+      const readPromises = svgFiles.map(file => {
+        return new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            resolve({
+              id: 'chord-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
+              title: cleanFilename(file.name),
+              svgContent: e.target.result
+            });
+          };
+          reader.readAsText(file);
+        });
+      });
 
-      svgFiles.forEach(file => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          chordItems.push({
-            id: 'chord-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4),
-            title: cleanFilename(file.name),
-            svgContent: e.target.result
-          });
-          pending--;
-          if (pending === 0) renderGrid();
-        };
-        reader.readAsText(file);
+      Promise.all(readPromises).then(newItems => {
+        chordItems.push(...newItems);
+        renderGrid();
       });
     }
 
-    fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
+    fileInput.addEventListener('change', (e) => {
+      handleFiles(e.target.files);
+      e.target.value = ''; // Permite volver a subir los mismos archivos si se desea
+    });
 
-    // Drag and Drop support
+    // Drag and Drop support para subir archivos externos
     dropZone.addEventListener('dragover', (e) => {
       e.preventDefault();
-      dropZone.classList.add('border-brand-500', 'ring-2', 'ring-brand-500/20');
+      if (draggedIndex === null && e.dataTransfer.types.includes('Files')) {
+        dropZone.classList.add('border-brand-500', 'ring-2', 'ring-brand-500/20');
+      }
     });
 
     dropZone.addEventListener('dragleave', () => {
@@ -405,7 +520,9 @@
     dropZone.addEventListener('drop', (e) => {
       e.preventDefault();
       dropZone.classList.remove('border-brand-500', 'ring-2', 'ring-brand-500/20');
-      if (e.dataTransfer.files) handleFiles(e.dataTransfer.files);
+      if (draggedIndex === null && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        handleFiles(e.dataTransfer.files);
+      }
     });
 
     // Clear All
