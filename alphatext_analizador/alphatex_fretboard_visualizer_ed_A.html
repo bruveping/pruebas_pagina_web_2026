@@ -1,0 +1,1177 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AlphaTex Fretboard Visualizer & Editor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+            color: #0f172a;
+        }
+        /* Custom scrollbar for editor */
+        textarea::-webkit-scrollbar {
+            width: 8px;
+        }
+        textarea::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 4px;
+        }
+        textarea::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        textarea::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        .svg-container svg {
+            width: 100%;
+            height: auto;
+            max-width: 240px;
+            display: block;
+            margin: 0 auto;
+            user-select: none;
+        }
+        .drag-over {
+            border-color: #0284c7 !important;
+            background-color: #f0f9ff !important;
+        }
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            body {
+                background: white;
+            }
+            .diagram-card {
+                break-inside: avoid;
+                box-shadow: none !important;
+                border: 1px solid #e2e8f0 !important;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-slate-900 text-white py-4 px-6 shadow-md no-print">
+        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-lg bg-sky-500 flex items-center justify-center font-bold text-slate-900 text-xl shadow">
+                    🎸
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold tracking-tight">AlphaTex Fretboard Studio</h1>
+                    <p class="text-xs text-slate-400">Analizador de Acordes y Melodía + Editor Visual Interactivo</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2.5">
+                <button id="btn-download-pdf" type="button" class="bg-sky-600 hover:bg-sky-500 text-white text-sm font-medium px-4 py-2 rounded-lg shadow transition flex items-center gap-2">
+                    <span>📥</span> Descargar PDF
+                </button>
+                <button onclick="window.print()" type="button" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm px-3.5 py-2 rounded-lg border border-slate-700 transition flex items-center gap-2" title="Imprimir">
+                    <span>🖨️</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- Left Sidebar: AlphaTex Input & Controls -->
+        <aside class="lg:col-span-4 flex flex-col gap-4 no-print">
+            <!-- Input Box & Drag-and-Drop Zone -->
+            <div id="drop-zone" class="bg-white p-4 rounded-xl shadow-sm border-2 border-slate-200 flex flex-col gap-3 transition-colors">
+                <div class="flex flex-wrap justify-between items-center gap-2">
+                    <label for="alphatex-input" class="text-sm font-semibold text-slate-700">Código .alphatex</label>
+                    <div class="flex items-center gap-1.5">
+                        <input type="file" id="file-upload" accept=".alphatex,.alphatext,.txt" class="hidden">
+                        <button type="button" id="btn-upload-file" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-slate-300 transition flex items-center gap-1" title="Subir archivo .alphatex">
+                            <span>📂</span> Subir
+                        </button>
+                        <button type="button" id="btn-parse" class="bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg shadow-sm transition">
+                            ↻ Renderizar
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="relative">
+                    <textarea id="alphatex-input" rows="9" class="w-full p-3 text-xs font-mono bg-slate-50 border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none leading-relaxed" spellcheck="false" placeholder="Pega tu código aquí o arrastra un archivo .alphatex..."></textarea>
+                    <div class="text-[11px] text-slate-400 text-right mt-1">
+                        Arrastra y suelta un archivo <code class="text-slate-600">.alphatex</code> o <code class="text-slate-600">.txt</code> aquí
+                    </div>
+                </div>
+                
+                <!-- Grid Columns & Fretboard Theme Controls -->
+                <div class="pt-2.5 border-t border-slate-100 grid grid-cols-2 gap-3">
+                    <div class="flex flex-col gap-1">
+                        <label for="col-count" class="text-xs font-medium text-slate-600">Columnas:</label>
+                        <input type="number" id="col-count" value="4" min="1" max="8" class="w-full p-1.5 text-center text-sm font-semibold border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 outline-none">
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <label for="board-theme" class="text-xs font-medium text-slate-600">Tema Diapasón:</label>
+                        <select id="board-theme" class="w-full p-1.5 text-xs font-semibold border border-slate-300 rounded-lg bg-white focus:ring-2 focus:ring-sky-500 outline-none">
+                            <option value="light" selected>Claro (Default)</option>
+                            <option value="sky">Celeste</option>
+                            <option value="rosewood">Madera (Rosewood)</option>
+                            <option value="dark">Oscuro</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Interactive Editor Palette -->
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-col gap-4">
+                <div>
+                    <h2 class="text-sm font-bold text-slate-800 uppercase tracking-wider mb-1">Herramientas de Edición</h2>
+                    <p id="tool-helper-text" class="text-xs text-slate-500">Haz clic sobre el diapasón para pintar o agregar notas.</p>
+                </div>
+
+                <!-- Tool Mode Selector -->
+                <div class="grid grid-cols-2 gap-2">
+                    <button type="button" data-tool="paint" class="tool-btn active bg-slate-900 text-white text-xs font-medium py-2 px-3 rounded-lg border border-slate-900 flex items-center justify-center gap-1.5 transition">
+                        <span>🎨</span> Pintar / Nota
+                    </button>
+                    <button type="button" data-tool="connect" class="tool-btn bg-white text-slate-700 hover:bg-slate-50 text-xs font-medium py-2 px-3 rounded-lg border border-slate-300 flex items-center justify-center gap-1.5 transition">
+                        <span>🔗</span> Conectar Notas
+                    </button>
+                    <button type="button" data-tool="label" class="tool-btn bg-white text-slate-700 hover:bg-slate-50 text-xs font-medium py-2 px-3 rounded-lg border border-slate-300 flex items-center justify-center gap-1.5 transition">
+                        <span>🏷️</span> Etiquetar
+                    </button>
+                    <button type="button" data-tool="delete" class="tool-btn bg-white text-slate-700 hover:bg-slate-50 text-xs font-medium py-2 px-3 rounded-lg border border-slate-300 flex items-center justify-center gap-1.5 transition">
+                        <span>🗑️</span> Borrar
+                    </button>
+                </div>
+
+                <!-- 4x4 Color Matrix (No predefined categories) -->
+                <div class="flex flex-col gap-2 pt-2 border-t border-slate-100">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-semibold text-slate-700">Color activo (Notas y Conexiones):</span>
+                        <span id="active-color-preview" class="w-4 h-4 rounded border border-slate-400 inline-block" style="background-color: #e11d48;"></span>
+                    </div>
+                    <div class="flex justify-center p-2.5 bg-slate-50 rounded-lg border border-slate-200">
+                        <div id="color-matrix" class="grid grid-cols-4 gap-2 w-full max-w-[144px]">
+                            <!-- 16 square color swatches injected via JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Display Options -->
+                <div class="pt-2 border-t border-slate-100 flex flex-col gap-2">
+                    <label class="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
+                        <input type="checkbox" id="toggle-frets" checked class="rounded text-sky-600 focus:ring-sky-500">
+                        <span>Mostrar número de traste si no hay etiqueta</span>
+                    </label>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Right Area: Printable Arrangement Container -->
+        <section id="printable-area" class="lg:col-span-8 flex flex-col gap-5 bg-transparent">
+            
+            <!-- Song Header Banner -->
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div class="flex-1">
+                    <input type="text" id="song-title-display" value="Impro ii V I en C" class="text-xl font-bold text-slate-900 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-sky-500 outline-none w-full" title="Haz clic para editar el título">
+                    <input type="text" id="song-subtitle-display" value="Ejemplo Multi-Track en AlphaText" class="text-sm text-slate-500 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-sky-500 outline-none w-full mt-0.5" title="Haz clic para editar el subtítulo">
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                    <span id="song-tempo-badge" class="bg-slate-100 text-slate-700 text-xs font-semibold px-3 py-1.5 rounded-full border border-slate-200">
+                        ♩ = 100 BPM
+                    </span>
+                </div>
+            </div>
+
+            <!-- Dynamic Grid Container -->
+            <div id="diagrams-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                <!-- Diagrams will be injected here -->
+            </div>
+
+        </section>
+    </main>
+
+    <!-- Custom Modal for Labeling Notes (Replaces prompt/alert) -->
+    <div id="label-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs hidden items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-xl shadow-xl border border-slate-200 max-w-xs w-full p-5 flex flex-col gap-4">
+            <div>
+                <h3 class="text-base font-bold text-slate-900">Etiqueta de la Nota</h3>
+                <p class="text-xs text-slate-500 mt-1">Ingresa texto breve (ej. R, 3, b7, 9, P) o deja vacío para quitar.</p>
+            </div>
+            <input type="text" id="modal-label-input" maxlength="4" placeholder="Ej: R, 3, b7..." class="w-full p-2.5 text-center font-bold text-base border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500 outline-none">
+            <div class="flex justify-end gap-2">
+                <button type="button" id="modal-cancel" class="px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Cancelar</button>
+                <button type="button" id="modal-save" class="px-4 py-1.5 text-xs font-semibold bg-sky-600 hover:bg-sky-500 text-white rounded-lg">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const DEFAULT_ALPHATEX = `\\title "Impro ii V I en C"
+\\subtitle "Ejemplo Multi-Track en AlphaText"
+\\tempo 100
+.
+\\track "Solo guitarra"
+\\instrument 25
+:8 (5.5 7.4 5.3 6.2).4{ch"Dm"} 5.2.8 7.3 5.2 6.2 8.2.4
+|
+(6.2 7.3 5.4 7.6){ch "G7"} 6.3.8 7.3 9.3 6.2 8.2 6.2
+|
+(8.6 9.4 7.3 5.2).1{ch "Cmaj7"}`;
+
+        // 16 Colors for the 4x4 Matrix (No predefined labels/categories)
+        const COLOR_PALETTE_16 = [
+            '#e11d48', '#f97316', '#facc15', '#84cc16',
+            '#10b981', '#06b6d4', '#3b82f6', '#6366f1',
+            '#8b5cf6', '#d946ef', '#ec4899', '#f43f5e',
+            '#0f172a', '#475569', '#94a3b8', '#ffffff'
+        ];
+
+        // Fretboard Themes (Light is default, Sky is optional)
+        const BOARD_THEMES = {
+            light: {
+                bg: '#f8fafc',
+                border: '#cbd5e1',
+                fretWire: '#64748b',
+                nut: '#0f172a',
+                string: '#334155',
+                inlay: '#cbd5e1',
+                text: '#334155'
+            },
+            sky: {
+                bg: '#73c2e1',
+                border: '#0f172a',
+                fretWire: '#0f172a',
+                nut: '#0f172a',
+                string: '#0f172a',
+                inlay: '#e0f2fe',
+                text: '#334155'
+            },
+            rosewood: {
+                bg: '#5c3a21',
+                border: '#2d1a0e',
+                fretWire: '#d4d4d8',
+                nut: '#fef3c7',
+                string: '#e4e4e7',
+                inlay: '#f5f5f4',
+                text: '#334155'
+            },
+            dark: {
+                bg: '#1e293b',
+                border: '#0f172a',
+                fretWire: '#64748b',
+                nut: '#f8fafc',
+                string: '#cbd5e1',
+                inlay: '#475569',
+                text: '#334155'
+            }
+        };
+
+        /**
+         * Application State
+         */
+        const state = {
+            meta: {
+                title: 'Impro ii V I en C',
+                subtitle: 'Ejemplo Multi-Track en AlphaText',
+                tempo: '100'
+            },
+            columns: 4,
+            theme: 'light', // Default light theme
+            activeTool: 'paint', // 'paint' | 'connect' | 'label' | 'delete'
+            activeColor: '#e11d48',
+            showFretNumbers: true,
+            diagrams: [], // Array of diagram objects { ..., notes: [], connections: [] }
+            pendingConnection: null, // { diagramId, fret, string } when connecting two notes manually
+            editingTarget: null // { diagramId, noteIndex }
+        };
+
+        // Standard inlay fret positions on guitar
+        const INLAY_FRETS = [3, 5, 7, 9, 12, 15, 17, 19, 21, 24];
+
+        /**
+         * Initialize 4x4 Color Matrix
+         */
+        function initColorMatrix() {
+            const matrixEl = document.getElementById('color-matrix');
+            matrixEl.innerHTML = '';
+
+            COLOR_PALETTE_16.forEach((hex) => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.dataset.color = hex;
+                btn.style.backgroundColor = hex;
+                btn.className = 'color-swatch w-full aspect-square max-w-[30px] max-h-[30px] rounded border border-slate-300 shadow-xs transition transform hover:scale-110 focus:outline-none';
+                
+                if (hex === state.activeColor) {
+                    btn.classList.add('ring-2', 'ring-offset-1', 'ring-slate-900', 'scale-105');
+                }
+
+                btn.onclick = () => {
+                    state.activeColor = hex;
+                    document.getElementById('active-color-preview').style.backgroundColor = hex;
+                    document.querySelectorAll('.color-swatch').forEach(s => {
+                        s.classList.remove('ring-2', 'ring-offset-1', 'ring-slate-900', 'scale-105');
+                    });
+                    btn.classList.add('ring-2', 'ring-offset-1', 'ring-slate-900', 'scale-105');
+
+                    // Switch out of delete mode automatically if user picks a color
+                    if (state.activeTool === 'delete') {
+                        setActiveTool('paint');
+                    }
+                };
+
+                matrixEl.appendChild(btn);
+            });
+        }
+
+        /**
+         * Regex-based AlphaTex Parser
+         * Extracts metadata, splits by bar '|', and separates Chords '(...)' from Melody notes.
+         */
+        function parseAlphaTex(rawText) {
+            const meta = {
+                title: 'Sin Título',
+                subtitle: '',
+                tempo: ''
+            };
+
+            // Extract metadata tags
+            const titleMatch = rawText.match(/\\title\s+"([^"]+)"/i);
+            if (titleMatch) meta.title = titleMatch[1];
+
+            const subtitleMatch = rawText.match(/\\subtitle\s+"([^"]+)"/i);
+            if (subtitleMatch) meta.subtitle = subtitleMatch[1];
+
+            const tempoMatch = rawText.match(/\\tempo\s+(\d+)/i);
+            if (tempoMatch) meta.tempo = tempoMatch[1];
+
+            // Isolate music body (usually after the metadata separator '.')
+            let body = rawText;
+            const dotSeparatorIndex = rawText.indexOf('\n.');
+            if (dotSeparatorIndex !== -1) {
+                body = rawText.slice(dotSeparatorIndex + 2);
+            }
+
+            // Remove track/instrument/clef directives from body
+            body = body.replace(/\\(track|instrument|clef|tuning|ts|key)[^\n]*/gi, ' ');
+
+            // Split into measures/bars using '|'
+            const rawBars = body.split('|').map(b => b.trim()).filter(b => b.length > 0);
+            const parsedDiagrams = [];
+
+            rawBars.forEach((barContent, barIdx) => {
+                const barNumber = barIdx + 1;
+                let workingText = barContent;
+
+                // 1. Extract Chords: (...) followed optionally by duration .4 and chord name {ch "Dm"}
+                const chordRegex = /\(([^)]+)\)(?:\.\d+)?(?:\s*\{ch\s*"([^"]+)"\})?/g;
+                let chordMatch;
+                let chordIndex = 0;
+
+                while ((chordMatch = chordRegex.exec(barContent)) !== null) {
+                    const notesInside = chordMatch[1];
+                    const chordName = chordMatch[2] || `Acorde ${chordIndex + 1}`;
+                    const notes = extractFretStringPairs(notesInside, '#e11d48');
+
+                    if (notes.length > 0) {
+                        const range = calculateFretRange(notes);
+                        parsedDiagrams.push({
+                            id: `d-${barIdx}-chord-${chordIndex}-${Date.now()}`,
+                            barNumber,
+                            type: 'chord',
+                            title: chordName,
+                            subtitle: `Compás ${barNumber} • Acorde`,
+                            notes,
+                            connections: [], // Manual connections start empty
+                            minFret: range.minFret,
+                            numFrets: range.numFrets
+                        });
+                        chordIndex++;
+                    }
+                }
+
+                // Remove extracted chords from workingText to isolate melody notes
+                workingText = workingText.replace(chordRegex, ' ');
+
+                // Remove remaining annotations like {ch "..."} or standalone duration prefixes like :8
+                workingText = workingText.replace(/\{[^}]*\}/g, ' ');
+                workingText = workingText.replace(/:\d+/g, ' ');
+
+                // 2. Extract Melody Notes: fret.string
+                const melodyNotes = extractFretStringPairs(workingText, '#3b82f6');
+
+                if (melodyNotes.length > 0) {
+                    const range = calculateFretRange(melodyNotes);
+                    parsedDiagrams.push({
+                        id: `d-${barIdx}-melody-${Date.now()}`,
+                        barNumber,
+                        type: 'melody',
+                        title: `Melodía`,
+                        subtitle: `Compás ${barNumber} • Frase`,
+                        notes: melodyNotes,
+                        connections: [], // Manual connections start empty so user chooses what to connect
+                        minFret: range.minFret,
+                        numFrets: range.numFrets
+                    });
+                }
+            });
+
+            return { meta, diagrams: parsedDiagrams };
+        }
+
+        /**
+         * Extracts fret.string tokens using Regex.
+         */
+        function extractFretStringPairs(textFragment, defaultColor) {
+            const notes = [];
+            const noteRegex = /\b(\d{1,2})\.([1-6])(?:\.\d+)?\b/g;
+            let match;
+
+            while ((match = noteRegex.exec(textFragment)) !== null) {
+                const fret = parseInt(match[1], 10);
+                const string = parseInt(match[2], 10);
+                notes.push({
+                    fret,
+                    string,
+                    color: defaultColor,
+                    label: ''
+                });
+            }
+            return notes;
+        }
+
+        /**
+         * Calculates the dynamic fret span required for a set of notes.
+         */
+        function calculateFretRange(notes) {
+            if (!notes || notes.length === 0) {
+                return { minFret: 1, numFrets: 4 };
+            }
+
+            const frettedNotes = notes.filter(n => n.fret > 0).map(n => n.fret);
+            const hasOpenStrings = notes.some(n => n.fret === 0);
+
+            if (frettedNotes.length === 0) {
+                return { minFret: 1, numFrets: 3 };
+            }
+
+            const lowest = Math.min(...frettedNotes);
+            const highest = Math.max(...frettedNotes);
+
+            let startFret = (hasOpenStrings && highest <= 4) ? 1 : lowest;
+            let span = highest - startFret + 1;
+
+            if (span < 2) {
+                span = 2;
+            }
+
+            return {
+                minFret: startFret,
+                numFrets: span
+            };
+        }
+
+        /**
+         * Renders the entire grid of diagrams based on state
+         */
+        function renderApp() {
+            document.getElementById('song-title-display').value = state.meta.title;
+            document.getElementById('song-subtitle-display').value = state.meta.subtitle;
+            const tempoBadge = document.getElementById('song-tempo-badge');
+            if (state.meta.tempo) {
+                tempoBadge.textContent = `♩ = ${state.meta.tempo} BPM`;
+                tempoBadge.classList.remove('hidden');
+            } else {
+                tempoBadge.classList.add('hidden');
+            }
+
+            const grid = document.getElementById('diagrams-grid');
+            grid.className = `grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-${state.columns}`;
+            if (window.innerWidth >= 1024) {
+                grid.style.gridTemplateColumns = `repeat(${state.columns}, minmax(0, 1fr))`;
+            } else if (window.innerWidth >= 640) {
+                grid.style.gridTemplateColumns = `repeat(${Math.min(state.columns, 2)}, minmax(0, 1fr))`;
+            } else {
+                grid.style.gridTemplateColumns = `repeat(1, minmax(0, 1fr))`;
+            }
+
+            grid.innerHTML = '';
+
+            if (state.diagrams.length === 0) {
+                grid.innerHTML = `
+                    <div class="col-span-full bg-white p-8 rounded-xl border border-dashed border-slate-300 text-center text-slate-500">
+                        No se encontraron acordes o melodías válidas en el código AlphaTex.
+                    </div>
+                `;
+                return;
+            }
+
+            state.diagrams.forEach((diagram) => {
+                const card = document.createElement('div');
+                card.className = 'diagram-card bg-white rounded-xl shadow-sm border border-slate-200 p-3.5 flex flex-col justify-between transition hover:shadow-md';
+
+                // Card Top Header
+                const header = document.createElement('div');
+                header.className = 'flex flex-col gap-1 mb-2 pb-2 border-b border-slate-100';
+
+                const topRow = document.createElement('div');
+                topRow.className = 'flex items-center justify-between gap-1';
+
+                const badge = document.createElement('span');
+                badge.className = diagram.type === 'chord'
+                    ? 'text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 text-slate-700'
+                    : 'text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 text-slate-600';
+                badge.textContent = diagram.subtitle;
+
+                // Fret span quick adjusters + clear connections button
+                const controls = document.createElement('div');
+                controls.className = 'flex items-center gap-1 no-print';
+                controls.innerHTML = `
+                    ${diagram.connections.length > 0 ? `<button type="button" title="Borrar líneas de conexión" class="btn-clear-conn px-1.5 h-5 rounded bg-amber-50 hover:bg-amber-100 text-amber-700 text-[10px] font-semibold flex items-center justify-center border border-amber-200">✂️</button>` : ''}
+                    <button type="button" title="Reducir trastes" class="btn-fret-minus w-5 h-5 rounded bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold flex items-center justify-center">-</button>
+                    <button type="button" title="Añadir traste" class="btn-fret-plus w-5 h-5 rounded bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold flex items-center justify-center">+</button>
+                `;
+
+                const clearConnBtn = controls.querySelector('.btn-clear-conn');
+                if (clearConnBtn) {
+                    clearConnBtn.onclick = () => {
+                        diagram.connections = [];
+                        state.pendingConnection = null;
+                        renderApp();
+                    };
+                }
+
+                controls.querySelector('.btn-fret-minus').onclick = () => {
+                    if (diagram.numFrets > 2) {
+                        diagram.numFrets--;
+                        renderApp();
+                    }
+                };
+                controls.querySelector('.btn-fret-plus').onclick = () => {
+                    if (diagram.numFrets < 12) {
+                        diagram.numFrets++;
+                        renderApp();
+                    }
+                };
+
+                topRow.appendChild(badge);
+                topRow.appendChild(controls);
+
+                // Editable diagram title
+                const titleInput = document.createElement('input');
+                titleInput.type = 'text';
+                titleInput.value = diagram.title;
+                titleInput.className = 'font-bold text-base text-slate-900 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-sky-500 outline-none w-full';
+                titleInput.title = 'Haz clic para editar el nombre o agregar texto';
+                titleInput.onchange = (e) => {
+                    diagram.title = e.target.value;
+                };
+
+                header.appendChild(topRow);
+                header.appendChild(titleInput);
+
+                // SVG Container
+                const svgWrapper = document.createElement('div');
+                svgWrapper.className = 'svg-container my-1';
+                svgWrapper.appendChild(buildFretboardSVG(diagram));
+
+                // Footer Note Legend
+                const footer = document.createElement('div');
+                footer.className = 'mt-2 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500';
+                footer.innerHTML = `
+                    <span>Traste: <strong>${diagram.minFret}fr</strong> (${diagram.numFrets} tr.)</span>
+                    <span>${diagram.notes.length} notas</span>
+                `;
+
+                card.appendChild(header);
+                card.appendChild(svgWrapper);
+                card.appendChild(footer);
+
+                grid.appendChild(card);
+            });
+        }
+
+        /**
+         * Builds the interactive SVG Fretboard with Theme support and Manual Connections
+         */
+        function buildFretboardSVG(diagram) {
+            const svgNS = 'http://www.w3.org/2000/svg';
+            const themeColors = BOARD_THEMES[state.theme] || BOARD_THEMES.light;
+            const numStrings = 6;
+            const numFrets = diagram.numFrets;
+            const minFret = diagram.minFret;
+
+            const padLeft = 34;
+            const padRight = 22;
+            const padTop = 26;
+            const padBottom = 18;
+            const stringSpacing = 28;
+            const fretHeight = 40;
+
+            const boardWidth = (numStrings - 1) * stringSpacing;
+            const boardHeight = numFrets * fretHeight;
+            const totalWidth = padLeft + boardWidth + padRight;
+            const totalHeight = padTop + boardHeight + padBottom;
+
+            const svg = document.createElementNS(svgNS, 'svg');
+            svg.setAttribute('viewBox', `0 0 ${totalWidth} ${totalHeight}`);
+
+            const getStringX = (stringNum) => padLeft + (6 - stringNum) * stringSpacing;
+            const getFretY = (fretNum) => {
+                if (fretNum === 0) return padTop - 13;
+                return padTop + (fretNum - minFret + 0.5) * fretHeight;
+            };
+
+            // 1. Fretboard Background (Themed)
+            const bgRect = document.createElementNS(svgNS, 'rect');
+            bgRect.setAttribute('x', padLeft - 6);
+            bgRect.setAttribute('y', padTop);
+            bgRect.setAttribute('width', boardWidth + 12);
+            bgRect.setAttribute('height', boardHeight);
+            bgRect.setAttribute('fill', themeColors.bg);
+            bgRect.setAttribute('stroke', themeColors.border);
+            bgRect.setAttribute('stroke-width', '1');
+            bgRect.setAttribute('rx', '3');
+            svg.appendChild(bgRect);
+
+            // 2. Fret Inlay Dots
+            for (let i = 0; i < numFrets; i++) {
+                const currentFret = minFret + i;
+                if (INLAY_FRETS.includes(currentFret)) {
+                    const cy = padTop + (i + 0.5) * fretHeight;
+                    if (currentFret === 12 || currentFret === 24) {
+                        [getStringX(5) + stringSpacing * 0.5, getStringX(3) + stringSpacing * 0.5].forEach(cx => {
+                            const dot = document.createElementNS(svgNS, 'circle');
+                            dot.setAttribute('cx', cx);
+                            dot.setAttribute('cy', cy);
+                            dot.setAttribute('r', '5.5');
+                            dot.setAttribute('fill', themeColors.inlay);
+                            dot.setAttribute('opacity', '0.85');
+                            svg.appendChild(dot);
+                        });
+                    } else {
+                        const cx = (getStringX(4) + getStringX(3)) / 2;
+                        const dot = document.createElementNS(svgNS, 'circle');
+                        dot.setAttribute('cx', cx);
+                        dot.setAttribute('cy', cy);
+                        dot.setAttribute('r', '6');
+                        dot.setAttribute('fill', themeColors.inlay);
+                        dot.setAttribute('opacity', '0.85');
+                        svg.appendChild(dot);
+                    }
+                }
+            }
+
+            // 3. Horizontal Fret Wires
+            for (let i = 0; i <= numFrets; i++) {
+                const y = padTop + i * fretHeight;
+                const line = document.createElementNS(svgNS, 'line');
+                line.setAttribute('x1', padLeft - 8);
+                line.setAttribute('x2', padLeft + boardWidth + 8);
+                line.setAttribute('y1', y);
+                line.setAttribute('y2', y);
+
+                if (i === 0 && minFret === 1) {
+                    line.setAttribute('stroke', themeColors.nut);
+                    line.setAttribute('stroke-width', '5');
+                } else if (i === 0 || i === numFrets) {
+                    line.setAttribute('stroke', themeColors.fretWire);
+                    line.setAttribute('stroke-width', '2.5');
+                } else {
+                    line.setAttribute('stroke', themeColors.fretWire);
+                    line.setAttribute('stroke-width', '1.5');
+                }
+                svg.appendChild(line);
+            }
+
+            // 4. Fret Number Indicator on the Left
+            const fretLabel = document.createElementNS(svgNS, 'text');
+            fretLabel.setAttribute('x', padLeft - 13);
+            fretLabel.setAttribute('y', padTop + fretHeight * 0.5 + 4);
+            fretLabel.setAttribute('text-anchor', 'end');
+            fretLabel.setAttribute('font-size', '11');
+            fretLabel.setAttribute('font-weight', '700');
+            fretLabel.setAttribute('fill', themeColors.text);
+            fretLabel.textContent = `${minFret}fr`;
+            svg.appendChild(fretLabel);
+
+            // 5. Vertical Strings
+            for (let s = 6; s >= 1; s--) {
+                const x = getStringX(s);
+                const stringLine = document.createElementNS(svgNS, 'line');
+                stringLine.setAttribute('x1', x);
+                stringLine.setAttribute('x2', x);
+                stringLine.setAttribute('y1', padTop);
+                stringLine.setAttribute('y2', padTop + boardHeight);
+                stringLine.setAttribute('stroke', themeColors.string);
+                const thickness = 1.4 + (s - 1) * 0.42;
+                stringLine.setAttribute('stroke-width', thickness.toFixed(2));
+                svg.appendChild(stringLine);
+            }
+
+            // 6. Interactive Grid Hitboxes for adding notes
+            for (let s = 6; s >= 1; s--) {
+                const openHit = document.createElementNS(svgNS, 'circle');
+                openHit.setAttribute('cx', getStringX(s));
+                openHit.setAttribute('cy', getFretY(0));
+                openHit.setAttribute('r', '10');
+                openHit.setAttribute('fill', 'transparent');
+                openHit.style.cursor = 'pointer';
+                openHit.onclick = () => handleEmptySlotClick(diagram, 0, s);
+                svg.appendChild(openHit);
+
+                for (let fOffset = 0; fOffset < numFrets; fOffset++) {
+                    const targetFret = minFret + fOffset;
+                    const hitRect = document.createElementNS(svgNS, 'rect');
+                    hitRect.setAttribute('x', getStringX(s) - stringSpacing / 2);
+                    hitRect.setAttribute('y', padTop + fOffset * fretHeight);
+                    hitRect.setAttribute('width', stringSpacing);
+                    hitRect.setAttribute('height', fretHeight);
+                    hitRect.setAttribute('fill', 'transparent');
+                    hitRect.style.cursor = 'pointer';
+                    hitRect.onclick = () => handleEmptySlotClick(diagram, targetFret, s);
+                    svg.appendChild(hitRect);
+                }
+            }
+
+            // 7. Manual Connections (Rendered using the active color saved on each connection)
+            if (diagram.connections && diagram.connections.length > 0) {
+                diagram.connections.forEach((conn, connIdx) => {
+                    if (isNoteVisible(conn.from, minFret, numFrets) && isNoteVisible(conn.to, minFret, numFrets)) {
+                        const connLine = document.createElementNS(svgNS, 'line');
+                        connLine.setAttribute('x1', getStringX(conn.from.string));
+                        connLine.setAttribute('y1', getFretY(conn.from.fret));
+                        connLine.setAttribute('x2', getStringX(conn.to.string));
+                        connLine.setAttribute('y2', getFretY(conn.to.fret));
+                        connLine.setAttribute('stroke', conn.color);
+                        connLine.setAttribute('stroke-width', '5');
+                        connLine.setAttribute('stroke-linecap', 'round');
+                        connLine.style.cursor = 'pointer';
+                        connLine.onclick = (e) => {
+                            e.stopPropagation();
+                            if (state.activeTool === 'delete') {
+                                diagram.connections.splice(connIdx, 1);
+                                renderApp();
+                            } else if (state.activeTool === 'paint') {
+                                conn.color = state.activeColor;
+                                renderApp();
+                            }
+                        };
+                        svg.appendChild(connLine);
+                    }
+                });
+            }
+
+            // 8. Render Notes
+            const renderedPositions = new Map();
+            diagram.notes.forEach((note, idx) => {
+                if (!isNoteVisible(note, minFret, numFrets)) return;
+                const posKey = `${note.string}-${note.fret}`;
+                renderedPositions.set(posKey, { note, idx });
+            });
+
+            renderedPositions.forEach(({ note, idx }) => {
+                const cx = getStringX(note.string);
+                const cy = getFretY(note.fret);
+
+                const group = document.createElementNS(svgNS, 'g');
+                group.style.cursor = 'pointer';
+
+                // Highlight ring if this note is currently selected as start of a connection
+                const isPendingStart = state.pendingConnection &&
+                    state.pendingConnection.diagramId === diagram.id &&
+                    state.pendingConnection.fret === note.fret &&
+                    state.pendingConnection.string === note.string;
+
+                if (isPendingStart) {
+                    const pulseRing = document.createElementNS(svgNS, 'circle');
+                    pulseRing.setAttribute('cx', cx);
+                    pulseRing.setAttribute('cy', cy);
+                    pulseRing.setAttribute('r', '15.5');
+                    pulseRing.setAttribute('fill', 'none');
+                    pulseRing.setAttribute('stroke', state.activeColor);
+                    pulseRing.setAttribute('stroke-width', '2.5');
+                    pulseRing.setAttribute('stroke-dasharray', '3 2');
+                    group.appendChild(pulseRing);
+                }
+
+                // Circle
+                const circle = document.createElementNS(svgNS, 'circle');
+                circle.setAttribute('cx', cx);
+                circle.setAttribute('cy', cy);
+                circle.setAttribute('r', note.fret === 0 ? '8.5' : '11.5');
+                circle.setAttribute('fill', note.color);
+                circle.setAttribute('stroke', '#1e293b');
+                circle.setAttribute('stroke-width', '1.5');
+                group.appendChild(circle);
+
+                // Label or Fret number inside circle
+                const displayText = note.label ? note.label : (state.showFretNumbers ? String(note.fret) : '');
+                if (displayText) {
+                    const text = document.createElementNS(svgNS, 'text');
+                    text.setAttribute('x', cx);
+                    text.setAttribute('y', cy + 3.5);
+                    text.setAttribute('text-anchor', 'middle');
+                    text.setAttribute('font-size', displayText.length > 2 ? '8.5' : '10');
+                    text.setAttribute('font-weight', '700');
+                    text.setAttribute('fill', isLightHex(note.color) ? '#0f172a' : '#ffffff');
+                    text.textContent = displayText;
+                    group.appendChild(text);
+                }
+
+                // Interaction handler on existing note
+                group.onclick = (e) => {
+                    e.stopPropagation();
+                    handleExistingNoteClick(diagram, idx, note);
+                };
+
+                svg.appendChild(group);
+            });
+
+            return svg;
+        }
+
+        function isLightHex(hex) {
+            const clean = hex.replace('#', '');
+            const r = parseInt(clean.substring(0, 2), 16);
+            const g = parseInt(clean.substring(2, 4), 16);
+            const b = parseInt(clean.substring(4, 6), 16);
+            const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+            return luminance > 0.65;
+        }
+
+        function isNoteVisible(note, minFret, numFrets) {
+            if (note.fret === 0) return true;
+            return note.fret >= minFret && note.fret < minFret + numFrets;
+        }
+
+        /**
+         * Handles clicking on an empty fret/string slot to add a new note
+         */
+        function handleEmptySlotClick(diagram, fret, string) {
+            if (state.activeTool === 'delete' || state.activeTool === 'connect') return;
+
+            const newNote = {
+                fret,
+                string,
+                color: state.activeColor,
+                label: ''
+            };
+
+            diagram.notes.push(newNote);
+
+            if (state.activeTool === 'label') {
+                openLabelModal(diagram.id, diagram.notes.length - 1, '');
+            } else {
+                renderApp();
+            }
+        }
+
+        /**
+         * Handles clicking on an already rendered note (paint, connect, delete, or label)
+         */
+        function handleExistingNoteClick(diagram, noteIndex, targetNote) {
+            if (state.activeTool === 'delete') {
+                // Remove note and any connections attached to it
+                diagram.notes = diagram.notes.filter(
+                    n => !(n.fret === targetNote.fret && n.string === targetNote.string)
+                );
+                diagram.connections = diagram.connections.filter(
+                    c => !(
+                        (c.from.fret === targetNote.fret && c.from.string === targetNote.string) ||
+                        (c.to.fret === targetNote.fret && c.to.string === targetNote.string)
+                    )
+                );
+                if (state.pendingConnection && state.pendingConnection.diagramId === diagram.id) {
+                    state.pendingConnection = null;
+                }
+                renderApp();
+            } else if (state.activeTool === 'paint') {
+                diagram.notes.forEach(n => {
+                    if (n.fret === targetNote.fret && n.string === targetNote.string) {
+                        n.color = state.activeColor;
+                    }
+                });
+                renderApp();
+            } else if (state.activeTool === 'connect') {
+                handleConnectionClick(diagram, targetNote);
+            } else if (state.activeTool === 'label') {
+                openLabelModal(diagram.id, noteIndex, targetNote.label || '');
+            }
+        }
+
+        /**
+         * Manual Two-Click Connection Logic
+         * Uses the active color selected in the 4x4 matrix
+         */
+        function handleConnectionClick(diagram, targetNote) {
+            const pending = state.pendingConnection;
+
+            // Step 1: Select first note
+            if (!pending || pending.diagramId !== diagram.id) {
+                state.pendingConnection = {
+                    diagramId: diagram.id,
+                    fret: targetNote.fret,
+                    string: targetNote.string
+                };
+                document.getElementById('tool-helper-text').textContent = 'Ahora haz clic en la segunda nota del mismo diagrama para conectarlas.';
+                renderApp();
+                return;
+            }
+
+            // Clicking the same note cancels selection
+            if (pending.fret === targetNote.fret && pending.string === targetNote.string) {
+                state.pendingConnection = null;
+                document.getElementById('tool-helper-text').textContent = 'Haz clic en la primera nota y luego en la segunda para unirlas.';
+                renderApp();
+                return;
+            }
+
+            // Step 2: Check if connection already exists between these two notes -> toggle or update color
+            const existingIdx = diagram.connections.findIndex(c =>
+                (c.from.fret === pending.fret && c.from.string === pending.string && c.to.fret === targetNote.fret && c.to.string === targetNote.string) ||
+                (c.to.fret === pending.fret && c.to.string === pending.string && c.from.fret === targetNote.fret && c.from.string === targetNote.string)
+            );
+
+            if (existingIdx !== -1) {
+                // Update color to active color if different, otherwise remove line
+                if (diagram.connections[existingIdx].color !== state.activeColor) {
+                    diagram.connections[existingIdx].color = state.activeColor;
+                } else {
+                    diagram.connections.splice(existingIdx, 1);
+                }
+            } else {
+                diagram.connections.push({
+                    from: { fret: pending.fret, string: pending.string },
+                    to: { fret: targetNote.fret, string: targetNote.string },
+                    color: state.activeColor
+                });
+            }
+
+            // Chain connection from the newly clicked note so user can trace multi-note paths smoothly
+            state.pendingConnection = {
+                diagramId: diagram.id,
+                fret: targetNote.fret,
+                string: targetNote.string
+            };
+            document.getElementById('tool-helper-text').textContent = 'Conectado. Haz clic en otra nota para continuar o en la misma para terminar.';
+            renderApp();
+        }
+
+        /**
+         * Tool Switching Helper
+         */
+        function setActiveTool(toolName) {
+            state.activeTool = toolName;
+            state.pendingConnection = null;
+
+            document.querySelectorAll('.tool-btn').forEach(b => {
+                b.classList.remove('active', 'bg-slate-900', 'text-white', 'border-slate-900');
+                b.classList.add('bg-white', 'text-slate-700', 'border-slate-300');
+            });
+
+            const activeBtn = document.querySelector(`.tool-btn[data-tool="${toolName}"]`);
+            if (activeBtn) {
+                activeBtn.classList.add('active', 'bg-slate-900', 'text-white', 'border-slate-900');
+                activeBtn.classList.remove('bg-white', 'text-slate-700', 'border-slate-300');
+            }
+
+            const helper = document.getElementById('tool-helper-text');
+            if (toolName === 'paint') helper.textContent = 'Haz clic en una nota para pintarla o en un traste vacío para agregarla.';
+            if (toolName === 'connect') helper.textContent = 'Haz clic en dos notas dentro de un diagrama para unirlas con el color activo.';
+            if (toolName === 'label') helper.textContent = 'Haz clic en una nota para escribirle una etiqueta (ej. R, 3, b7).';
+            if (toolName === 'delete') helper.textContent = 'Haz clic en una nota o línea de conexión para eliminarla.';
+
+            renderApp();
+        }
+
+        /**
+         * File Upload & Drag-and-Drop Handling
+         */
+        function loadAlphaTexFile(file) {
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const content = e.target.result;
+                document.getElementById('alphatex-input').value = content;
+                const parsed = parseAlphaTex(content);
+                state.meta = parsed.meta;
+                state.diagrams = parsed.diagrams;
+                state.pendingConnection = null;
+                renderApp();
+            };
+            reader.readAsText(file);
+        }
+
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-upload');
+
+        document.getElementById('btn-upload-file').addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files && e.target.files[0]) {
+                loadAlphaTexFile(e.target.files[0]);
+                fileInput.value = '';
+            }
+        });
+
+        ['dragenter', 'dragover'].forEach(evtName => {
+            dropZone.addEventListener(evtName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropZone.classList.add('drag-over');
+            });
+        });
+
+        ['dragleave', 'drop'].forEach(evtName => {
+            dropZone.addEventListener(evtName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropZone.classList.remove('drag-over');
+            });
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            const files = e.dataTransfer.files;
+            if (files && files[0]) {
+                loadAlphaTexFile(files[0]);
+            }
+        });
+
+        /**
+         * Direct PDF Download using html2pdf.js
+         */
+        document.getElementById('btn-download-pdf').addEventListener('click', () => {
+            const element = document.getElementById('printable-area');
+            const cleanTitle = (state.meta.title || 'arreglo_alphatex').replace(/[^a-z0-9áéíóúñ_-]/gi, '_').toLowerCase();
+
+            // Temporarily hide UI-only buttons inside cards during PDF capture
+            const noPrintEls = element.querySelectorAll('.no-print');
+            noPrintEls.forEach(el => el.style.display = 'none');
+
+            const opt = {
+                margin: [10, 10, 10, 10],
+                filename: `${cleanTitle}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: state.columns >= 4 ? 'landscape' : 'portrait' }
+            };
+
+            html2pdf().set(opt).from(element).save().then(() => {
+                noPrintEls.forEach(el => el.style.display = '');
+            });
+        });
+
+        /**
+         * Modal controls for note labeling
+         */
+        function openLabelModal(diagramId, noteIndex, currentLabel) {
+            state.editingTarget = { diagramId, noteIndex };
+            const modal = document.getElementById('label-modal');
+            const input = document.getElementById('modal-label-input');
+            input.value = currentLabel;
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            input.focus();
+            input.select();
+        }
+
+        function closeLabelModal() {
+            const modal = document.getElementById('label-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            state.editingTarget = null;
+        }
+
+        document.getElementById('modal-cancel').onclick = closeLabelModal;
+        document.getElementById('modal-save').onclick = () => {
+            if (state.editingTarget) {
+                const { diagramId, noteIndex } = state.editingTarget;
+                const diagram = state.diagrams.find(d => d.id === diagramId);
+                if (diagram && diagram.notes[noteIndex]) {
+                    const target = diagram.notes[noteIndex];
+                    const newVal = document.getElementById('modal-label-input').value.trim();
+                    diagram.notes.forEach(n => {
+                        if (n.fret === target.fret && n.string === target.string) {
+                            n.label = newVal;
+                        }
+                    });
+                }
+            }
+            closeLabelModal();
+            renderApp();
+        };
+
+        document.getElementById('modal-label-input').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') document.getElementById('modal-save').click();
+            if (e.key === 'Escape') closeLabelModal();
+        });
+
+        /**
+         * Event Listeners for UI Controls
+         */
+        document.getElementById('btn-parse').addEventListener('click', () => {
+            const raw = document.getElementById('alphatex-input').value;
+            const parsed = parseAlphaTex(raw);
+            state.meta = parsed.meta;
+            state.diagrams = parsed.diagrams;
+            state.pendingConnection = null;
+            renderApp();
+        });
+
+        document.getElementById('col-count').addEventListener('input', (e) => {
+            let val = parseInt(e.target.value, 10);
+            if (isNaN(val) || val < 1) val = 1;
+            if (val > 8) val = 8;
+            state.columns = val;
+            renderApp();
+        });
+
+        document.getElementById('board-theme').addEventListener('change', (e) => {
+            state.theme = e.target.value;
+            renderApp();
+        });
+
+        document.querySelectorAll('.tool-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                setActiveTool(btn.dataset.tool);
+            });
+        });
+
+        document.getElementById('toggle-frets').addEventListener('change', (e) => {
+            state.showFretNumbers = e.target.checked;
+            renderApp();
+        });
+
+        document.getElementById('song-title-display').addEventListener('input', (e) => {
+            state.meta.title = e.target.value;
+        });
+
+        document.getElementById('song-subtitle-display').addEventListener('input', (e) => {
+            state.meta.subtitle = e.target.value;
+        });
+
+        window.addEventListener('resize', () => {
+            renderApp();
+        });
+
+        // Initial parse and render on load
+        window.addEventListener('DOMContentLoaded', () => {
+            initColorMatrix();
+            const textarea = document.getElementById('alphatex-input');
+            textarea.value = DEFAULT_ALPHATEX;
+            const parsed = parseAlphaTex(DEFAULT_ALPHATEX);
+            state.meta = parsed.meta;
+            state.diagrams = parsed.diagrams;
+            renderApp();
+        });
+    </script>
+</body>
+</html>

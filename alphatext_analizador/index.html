@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AlphaTex Fretboard Visualizer & Editor</title>
+    <!-- Favicon SVG: Diapasón estilizado con notas de acorde formando una tríada -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230f172a'/%3E%3Cline x1='18' y1='12' x2='18' y2='52' stroke='%23475569' stroke-width='2.5'/%3E%3Cline x1='32' y1='12' x2='32' y2='52' stroke='%23475569' stroke-width='2.5'/%3E%3Cline x1='46' y1='12' x2='46' y2='52' stroke='%23475569' stroke-width='2.5'/%3E%3Cline x1='12' y1='20' x2='52' y2='20' stroke='%2394a3b8' stroke-width='2'/%3E%3Cline x1='12' y1='34' x2='52' y2='34' stroke='%2394a3b8' stroke-width='2'/%3E%3Cline x1='12' y1='48' x2='52' y2='48' stroke='%2394a3b8' stroke-width='2'/%3E%3Cpath d='M18 41 L32 27 L46 41' fill='none' stroke='%2338bdf8' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='18' cy='41' r='6' fill='%23e11d48' stroke='%23ffffff' stroke-width='1.5'/%3E%3Ccircle cx='32' cy='27' r='6' fill='%23facc15' stroke='%230f172a' stroke-width='1.5'/%3E%3Ccircle cx='46' cy='41' r='6' fill='%2310b981' stroke='%23ffffff' stroke-width='1.5'/%3E%3C/svg%3E">
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body {
@@ -40,6 +41,24 @@
             border-color: #0284c7 !important;
             background-color: #f0f9ff !important;
         }
+        /* Estilos para reordenamiento de tarjetas */
+        .diagram-card.card-dragging {
+            opacity: 0.45;
+            transform: scale(0.98);
+            border-style: dashed;
+            border-color: #0284c7;
+        }
+        .diagram-card.card-drop-target {
+            border-color: #0284c7 !important;
+            box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.35) !important;
+            background-color: #f0f9ff;
+        }
+        .drag-handle {
+            cursor: grab;
+        }
+        .drag-handle:active {
+            cursor: grabbing;
+        }
         @media print {
             .no-print {
                 display: none !important;
@@ -70,11 +89,8 @@
                 </div>
             </div>
             <div class="flex items-center gap-2.5">
-                <button id="btn-download-pdf" type="button" class="bg-sky-600 hover:bg-sky-500 text-white text-sm font-medium px-4 py-2 rounded-lg shadow transition flex items-center gap-2">
-                    <span>📥</span> Descargar PDF
-                </button>
-                <button onclick="window.print()" type="button" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm px-3.5 py-2 rounded-lg border border-slate-700 transition flex items-center gap-2" title="Imprimir">
-                    <span>🖨️</span>
+                <button onclick="window.print()" type="button" class="bg-sky-600 hover:bg-sky-500 text-white text-sm font-medium px-4 py-2 rounded-lg shadow transition flex items-center gap-2" title="Imprimir o guardar como PDF">
+                    <span>🖨️</span> Imprimir PDF
                 </button>
             </div>
         </div>
@@ -287,7 +303,8 @@
             showFretNumbers: true,
             diagrams: [], // Array of diagram objects { ..., notes: [], connections: [] }
             pendingConnection: null, // { diagramId, fret, string } when connecting two notes manually
-            editingTarget: null // { diagramId, noteIndex }
+            editingTarget: null, // { diagramId, noteIndex }
+            draggedDiagramIndex: null // Index of diagram being reordered via drag & drop
         };
 
         // Standard inlay fret positions on guitar
@@ -477,6 +494,26 @@
         }
 
         /**
+         * Reorders diagrams array safely and re-renders
+         */
+        function moveDiagram(fromIndex, toIndex) {
+            if (
+                fromIndex === null ||
+                toIndex === null ||
+                fromIndex === toIndex ||
+                fromIndex < 0 ||
+                toIndex < 0 ||
+                fromIndex >= state.diagrams.length ||
+                toIndex >= state.diagrams.length
+            ) {
+                return;
+            }
+            const [movedItem] = state.diagrams.splice(fromIndex, 1);
+            state.diagrams.splice(toIndex, 0, movedItem);
+            renderApp();
+        }
+
+        /**
          * Renders the entire grid of diagrams based on state
          */
         function renderApp() {
@@ -511,13 +548,79 @@
                 return;
             }
 
-            state.diagrams.forEach((diagram) => {
+            state.diagrams.forEach((diagram, diagramIndex) => {
                 const card = document.createElement('div');
                 card.className = 'diagram-card bg-white rounded-xl shadow-sm border border-slate-200 p-3.5 flex flex-col justify-between transition hover:shadow-md';
+                card.dataset.index = diagramIndex;
+
+                // Drag-and-drop card reordering (activated only when dragging from the handle so SVG clicks never conflict)
+                card.addEventListener('dragstart', (e) => {
+                    state.draggedDiagramIndex = diagramIndex;
+                    card.classList.add('card-dragging');
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', String(diagramIndex));
+                });
+
+                card.addEventListener('dragend', () => {
+                    card.setAttribute('draggable', 'false');
+                    card.classList.remove('card-dragging');
+                    state.draggedDiagramIndex = null;
+                    document.querySelectorAll('.diagram-card').forEach(c => c.classList.remove('card-drop-target'));
+                });
+
+                card.addEventListener('dragover', (e) => {
+                    if (state.draggedDiagramIndex === null || state.draggedDiagramIndex === diagramIndex) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    card.classList.add('card-drop-target');
+                });
+
+                card.addEventListener('dragleave', (e) => {
+                    if (!card.contains(e.relatedTarget)) {
+                        card.classList.remove('card-drop-target');
+                    }
+                });
+
+                card.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    card.classList.remove('card-drop-target');
+                    const fromIdx = state.draggedDiagramIndex;
+                    if (fromIdx !== null && fromIdx !== diagramIndex) {
+                        moveDiagram(fromIdx, diagramIndex);
+                    }
+                });
 
                 // Card Top Header
                 const header = document.createElement('div');
                 header.className = 'flex flex-col gap-1 mb-2 pb-2 border-b border-slate-100';
+
+                // Reorder Bar (Hidden when printing or exporting PDF)
+                const reorderBar = document.createElement('div');
+                reorderBar.className = 'flex items-center justify-between gap-1 pb-1 mb-0.5 border-b border-slate-100/80 no-print';
+
+                const dragHandle = document.createElement('div');
+                dragHandle.className = 'drag-handle flex items-center gap-1 text-[11px] font-semibold text-slate-400 hover:text-slate-700 select-none px-1 py-0.5 rounded hover:bg-slate-100 transition';
+                dragHandle.title = 'Arrastra desde aquí para reordenar esta tarjeta';
+                dragHandle.innerHTML = `<span class="tracking-tighter">⋮⋮</span><span>#${diagramIndex + 1}</span>`;
+                dragHandle.addEventListener('mousedown', () => {
+                    card.setAttribute('draggable', 'true');
+                });
+                dragHandle.addEventListener('mouseup', () => {
+                    card.setAttribute('draggable', 'false');
+                });
+
+                const moveBtns = document.createElement('div');
+                moveBtns.className = 'flex items-center gap-1';
+                moveBtns.innerHTML = `
+                    <button type="button" title="Mover tarjeta a la izquierda" class="btn-move-left w-5 h-5 rounded bg-slate-50 hover:bg-slate-200 disabled:opacity-30 disabled:pointer-events-none text-slate-600 text-[11px] font-bold flex items-center justify-center border border-slate-200" ${diagramIndex === 0 ? 'disabled' : ''}>◀</button>
+                    <button type="button" title="Mover tarjeta a la derecha" class="btn-move-right w-5 h-5 rounded bg-slate-50 hover:bg-slate-200 disabled:opacity-30 disabled:pointer-events-none text-slate-600 text-[11px] font-bold flex items-center justify-center border border-slate-200" ${diagramIndex === state.diagrams.length - 1 ? 'disabled' : ''}>▶</button>
+                `;
+
+                moveBtns.querySelector('.btn-move-left').onclick = () => moveDiagram(diagramIndex, diagramIndex - 1);
+                moveBtns.querySelector('.btn-move-right').onclick = () => moveDiagram(diagramIndex, diagramIndex + 1);
+
+                reorderBar.appendChild(dragHandle);
+                reorderBar.appendChild(moveBtns);
 
                 const topRow = document.createElement('div');
                 topRow.className = 'flex items-center justify-between gap-1';
@@ -572,6 +675,7 @@
                     diagram.title = e.target.value;
                 };
 
+                header.appendChild(reorderBar);
                 header.appendChild(topRow);
                 header.appendChild(titleInput);
 
@@ -1043,30 +1147,6 @@
             if (files && files[0]) {
                 loadAlphaTexFile(files[0]);
             }
-        });
-
-        /**
-         * Direct PDF Download using html2pdf.js
-         */
-        document.getElementById('btn-download-pdf').addEventListener('click', () => {
-            const element = document.getElementById('printable-area');
-            const cleanTitle = (state.meta.title || 'arreglo_alphatex').replace(/[^a-z0-9áéíóúñ_-]/gi, '_').toLowerCase();
-
-            // Temporarily hide UI-only buttons inside cards during PDF capture
-            const noPrintEls = element.querySelectorAll('.no-print');
-            noPrintEls.forEach(el => el.style.display = 'none');
-
-            const opt = {
-                margin: [10, 10, 10, 10],
-                filename: `${cleanTitle}.pdf`,
-                image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: state.columns >= 4 ? 'landscape' : 'portrait' }
-            };
-
-            html2pdf().set(opt).from(element).save().then(() => {
-                noPrintEls.forEach(el => el.style.display = '');
-            });
         });
 
         /**
