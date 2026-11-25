@@ -32,7 +32,7 @@ https://bruveping.github.io/pruebas_pagina_web_2026/alpha_Text_Studio/
 alphatext_analizador [alphatext_analizador](https://bruveping.github.io/pruebas_pagina_web_2026/alphatext_analizador/) <br>
 https://bruveping.github.io/pruebas_pagina_web_2026/alphatext_analizador/
 
-## alphatext_analizador
+## analiza_bateria_2026_11
 analiza_bateria_2026_11 [analiza_bateria_2026_11](https://bruveping.github.io/pruebas_pagina_web_2026/analiza_bateria_2026_11/) <br>
 https://bruveping.github.io/pruebas_pagina_web_2026/analiza_bateria_2026_11/
 
