@@ -1,0 +1,1130 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio2Drum MIDI - Extractor de Percusión</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #09090b;
+            color: #f4f4f5;
+        }
+        /* Personalización de sliders */
+        input[type=range] {
+            -webkit-appearance: none;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #6366f1;
+            cursor: pointer;
+            margin-top: -6px;
+            box-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #27272a;
+            border-radius: 2px;
+        }
+        .canvas-container {
+            touch-action: none; /* Prevenir scroll al arrastrar en móviles */
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between selection:bg-indigo-500 selection:text-white">
+
+    <!-- Notificación / Toast personalizado (Reemplazo de alert) -->
+    <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
+        <div class="bg-zinc-900 border border-zinc-700 text-zinc-100 px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3">
+            <span id="toast-icon" class="text-indigo-400">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            </span>
+            <p id="toast-message" class="text-sm font-medium">Mensaje</p>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header class="border-b border-zinc-800/80 bg-zinc-950/50 backdrop-blur-md sticky top-0 z-40">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold tracking-tight text-white">Audio2Drum <span class="text-indigo-400">MIDI</span></h1>
+                    <p class="text-xs text-zinc-400">Extractor DSP de percusión por bandas de frecuencia</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button id="btn-load-new" class="hidden text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-200 px-3 py-2 rounded-lg transition-colors border border-zinc-700">
+                    Cargar otro audio
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow max-w-6xl w-full mx-auto px-4 sm:px-6 py-8">
+        
+        <!-- Zona Drag & Drop Inicial -->
+        <div id="drop-zone" class="border-2 border-dashed border-zinc-700 hover:border-indigo-500 bg-zinc-900/40 hover:bg-zinc-900/80 rounded-2xl p-12 text-center transition-all duration-200 cursor-pointer flex flex-col items-center justify-center min-h-[340px]">
+            <input type="file" id="file-input" accept="audio/*" class="hidden">
+            <div class="w-16 h-16 rounded-full bg-zinc-800/80 flex items-center justify-center mb-4 text-indigo-400 group-hover:scale-110 transition-transform">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                </svg>
+            </div>
+            <h2 class="text-xl font-semibold text-white mb-2">Arrastra y suelta tu archivo de audio aquí</h2>
+            <p class="text-sm text-zinc-400 max-w-md mb-6">Soporta MP3, WAV, OGG, FLAC o M4A. Procesamiento 100% local en tu navegador.</p>
+            <button type="button" class="bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm px-6 py-3 rounded-xl shadow-lg shadow-indigo-600/20 transition-all">
+                Seleccionar Archivo
+            </button>
+        </div>
+
+        <!-- Workspace (Oculto hasta cargar audio) -->
+        <div id="workspace" class="hidden space-y-6">
+            
+            <!-- Info del archivo y controles de reproducción -->
+            <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4">
+                <div class="flex items-center gap-3 overflow-hidden">
+                    <div class="p-2.5 bg-indigo-500/10 text-indigo-400 rounded-xl shrink-0">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2z"></path></svg>
+                    </div>
+                    <div class="truncate">
+                        <h3 id="file-name" class="text-sm font-semibold text-white truncate">cancion.mp3</h3>
+                        <p id="file-meta" class="text-xs text-zinc-400">Duración: 00:00 | Sample Rate: 44100Hz</p>
+                    </div>
+                </div>
+
+                <!-- Controles de Audio y Región -->
+                <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+                    <button id="btn-play-region" class="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-white text-xs sm:text-sm font-medium px-4 py-2.5 rounded-xl transition-colors border border-zinc-700">
+                        <svg id="icon-play" class="w-4 h-4 text-emerald-400" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"/></svg>
+                        <span id="text-play">Escuchar Región</span>
+                    </button>
+                    
+                    <button id="btn-select-all" class="text-xs font-medium bg-zinc-800/60 hover:bg-zinc-800 text-zinc-300 px-3 py-2.5 rounded-xl border border-zinc-800 transition-colors">
+                        Toda la pista
+                    </button>
+                </div>
+            </div>
+
+            <!-- Editor de Forma de Onda y Selección de Región -->
+            <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 sm:p-6 space-y-3">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                        <h3 class="text-sm font-semibold text-white">1. Selecciona la Región a Analizar</h3>
+                        <p class="text-xs text-zinc-400">Arrastra sobre la onda para crear una selección o mueve los bordes laterales.</p>
+                    </div>
+                    <div class="flex items-center gap-3 text-xs font-mono bg-zinc-950 px-3 py-1.5 rounded-lg border border-zinc-800">
+                        <span class="text-zinc-400">Inicio: <strong id="region-start-time" class="text-indigo-400">0.00s</strong></span>
+                        <span class="text-zinc-600">|</span>
+                        <span class="text-zinc-400">Fin: <strong id="region-end-time" class="text-indigo-400">0.00s</strong></span>
+                        <span class="text-zinc-600">|</span>
+                        <span class="text-zinc-400">Dur: <strong id="region-dur-time" class="text-emerald-400">0.00s</strong></span>
+                    </div>
+                </div>
+
+                <!-- Canvas Waveform -->
+                <div class="relative w-full h-44 bg-zinc-950 rounded-xl border border-zinc-800 overflow-hidden canvas-container select-none" id="waveform-wrapper">
+                    <canvas id="waveform-canvas" class="w-full h-full block cursor-crosshair"></canvas>
+                </div>
+            </div>
+
+            <!-- Panel de Parámetros de Detección DSP -->
+            <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 sm:p-6 space-y-5">
+                <div class="flex flex-wrap items-center justify-between gap-4 border-b border-zinc-800 pb-4">
+                    <div>
+                        <h3 class="text-sm font-semibold text-white">2. Ajuste de Sensibilidad de Percusión</h3>
+                        <p class="text-xs text-zinc-400">Filtra frecuencias para aislar Bombo (Graves), Caja (Medios) y Hi-Hat (Agudos).</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="flex items-center gap-2 bg-zinc-950 px-3 py-1.5 rounded-xl border border-zinc-800">
+                            <label for="bpm-input" class="text-xs text-zinc-400 font-medium">BPM MIDI:</label>
+                            <input type="number" id="bpm-input" value="120" min="40" max="240" class="w-14 bg-transparent text-sm font-bold text-white focus:outline-none text-center">
+                        </div>
+                        <button id="btn-analyze" class="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold px-5 py-2.5 rounded-xl shadow-lg shadow-indigo-600/20 transition-all flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path></svg>
+                            Extraer Batería
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Sliders de sensibilidad por banda -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- Kick -->
+                    <div class="bg-zinc-950/60 p-4 rounded-xl border border-zinc-800/80 space-y-3">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-bold uppercase tracking-wider text-rose-400 flex items-center gap-1.5">
+                                <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span> Bombo (Kick - C1)
+                            </span>
+                            <span id="val-kick" class="text-xs font-mono text-zinc-300">65%</span>
+                        </div>
+                        <input type="range" id="sens-kick" min="10" max="95" value="65" class="w-full">
+                        <p class="text-[11px] text-zinc-500">Rango: 40Hz - 130Hz (Subgraves y golpe)</p>
+                    </div>
+
+                    <!-- Snare -->
+                    <div class="bg-zinc-950/60 p-4 rounded-xl border border-zinc-800/80 space-y-3">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                                <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span> Caja (Snare - D1)
+                            </span>
+                            <span id="val-snare" class="text-xs font-mono text-zinc-300">60%</span>
+                        </div>
+                        <input type="range" id="sens-snare" min="10" max="95" value="60" class="w-full">
+                        <p class="text-[11px] text-zinc-500">Rango: 180Hz - 2.5kHz (Cuerpo y bordona)</p>
+                    </div>
+
+                    <!-- Hi-Hat -->
+                    <div class="bg-zinc-950/60 p-4 rounded-xl border border-zinc-800/80 space-y-3">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
+                                <span class="w-2.5 h-2.5 rounded-full bg-cyan-500"></span> Hi-Hat (F#1)
+                            </span>
+                            <span id="val-hat" class="text-xs font-mono text-zinc-300">55%</span>
+                        </div>
+                        <input type="range" id="sens-hat" min="10" max="95" value="55" class="w-full">
+                        <p class="text-[11px] text-zinc-500">Rango: > 5.5kHz (Transientes metálicos)</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Resultados: Piano Roll de Batería y Exportación MIDI -->
+            <div id="results-panel" class="hidden bg-zinc-900 border border-zinc-800 rounded-2xl p-4 sm:p-6 space-y-4">
+                <div class="flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                        <h3 class="text-sm font-semibold text-white">3. Patrón MIDI Generado</h3>
+                        <p id="hits-summary" class="text-xs text-zinc-400">Se detectaron 0 golpes de percusión en la región.</p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-3">
+                        <button id="btn-preview-midi" class="flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-white text-xs sm:text-sm font-medium px-4 py-2.5 rounded-xl border border-zinc-700 transition-colors">
+                            <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path></svg>
+                            <span>Escuchar Batería Sintetizada</span>
+                        </button>
+                        <button id="btn-download-midi" class="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-semibold px-5 py-2.5 rounded-xl shadow-lg shadow-emerald-600/20 transition-all">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                            <span>Descargar .MID</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Visualizador Grid / Piano Roll -->
+                <div class="w-full h-40 bg-zinc-950 rounded-xl border border-zinc-800 overflow-hidden relative">
+                    <canvas id="midi-canvas" class="w-full h-full block"></canvas>
+                </div>
+                <div class="flex flex-wrap items-center justify-between text-[11px] text-zinc-500">
+                    <span>Mapeo Estándar General MIDI (Canal 10): Kick = 36 (C1) | Snare = 38 (D1) | Closed Hi-Hat = 42 (F#1)</span>
+                    <span>Velocidad dinámica calculada según intensidad del transiente</span>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-zinc-900 py-6 text-center text-xs text-zinc-500">
+        <p>Procesamiento de audio mediante Web Audio API & Generación binaria SMF (Standard MIDI File Format 0)</p>
+    </footer>
+
+    <script>
+        /**
+         * ESTADO GLOBAL DE LA APLICACIÓN
+         */
+        const state = {
+            audioCtx: null,
+            audioBuffer: null,
+            fileName: 'bateria_extraida',
+            duration: 0,
+            regionStart: 0, // en segundos
+            regionEnd: 0,   // en segundos
+            waveformPeaks: [],
+            isPlayingAudio: false,
+            activeSourceNode: null,
+            playbackStartTime: 0,
+            playbackOffset: 0,
+            animFrameId: null,
+            detectedHits: [], // { time: number (relativo a región), type: 'kick'|'snare'|'hat', midiNote: number, velocity: number }
+            isPlayingMidi: false,
+            midiTimeouts: []
+        };
+
+        // Referencias DOM
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const workspace = document.getElementById('workspace');
+        const btnLoadNew = document.getElementById('btn-load-new');
+        
+        const waveformCanvas = document.getElementById('waveform-canvas');
+        const waveCtx = waveformCanvas.getContext('2d');
+        
+        const midiCanvas = document.getElementById('midi-canvas');
+        const midiCtx = midiCanvas.getContext('2d');
+
+        // Notificaciones Toast
+        function showToast(msg, isError = false) {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toast-message');
+            const toastIcon = document.getElementById('toast-icon');
+            
+            toastMsg.textContent = msg;
+            toastIcon.className = isError ? 'text-rose-400' : 'text-emerald-400';
+            
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3500);
+        }
+
+        // Inicializar AudioContext bajo interacción
+        function initAudioContext() {
+            if (!state.audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                state.audioCtx = new AudioContext();
+            }
+            if (state.audioCtx.state === 'suspended') {
+                state.audioCtx.resume();
+            }
+        }
+
+        /**
+         * 1. CARGA Y DECODIFICACIÓN DE AUDIO (DRAG & DROP)
+         */
+        dropZone.addEventListener('click', () => fileInput.click());
+        btnLoadNew.addEventListener('click', () => {
+            stopAudioPlayback();
+            stopMidiPlayback();
+            fileInput.click();
+        });
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('border-indigo-500', 'bg-zinc-900');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('border-indigo-500', 'bg-zinc-900');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('border-indigo-500', 'bg-zinc-900');
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                handleAudioFile(e.dataTransfer.files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files && e.target.files.length > 0) {
+                handleAudioFile(e.target.files[0]);
+            }
+        });
+
+        async function handleAudioFile(file) {
+            if (!file.type.startsWith('audio/') && !file.name.match(/\.(mp3|wav|ogg|flac|m4a|aac)$/i)) {
+                showToast('Por favor selecciona un archivo de audio válido.', true);
+                return;
+            }
+
+            try {
+                initAudioContext();
+                showToast('Decodificando audio...');
+                
+                state.fileName = file.name.replace(/\.[^/.]+$/, "");
+                const arrayBuffer = await file.arrayBuffer();
+                const decodedBuffer = await state.audioCtx.decodeAudioData(arrayBuffer);
+                
+                state.audioBuffer = decodedBuffer;
+                state.duration = decodedBuffer.duration;
+                
+                // Región por defecto: primeros 8 segundos o toda la pista si es más corta
+                state.regionStart = 0;
+                state.regionEnd = Math.min(8, decodedBuffer.duration);
+
+                // Actualizar UI
+                document.getElementById('file-name').textContent = file.name;
+                document.getElementById('file-meta').textContent = `Duración: ${formatTime(decodedBuffer.duration)} | ${decodedBuffer.sampleRate} Hz | ${decodedBuffer.numberOfChannels} ch`;
+                
+                dropZone.classList.add('hidden');
+                workspace.classList.remove('hidden');
+                btnLoadNew.classList.remove('hidden');
+                document.getElementById('results-panel').classList.add('hidden');
+
+                computeWaveformPeaks();
+                resizeCanvases();
+                updateRegionUI();
+                showToast('Audio cargado. Selecciona la región y extrae la batería.');
+            } catch (err) {
+                console.error(err);
+                showToast('Error al decodificar el archivo de audio.', true);
+            }
+        }
+
+        function formatTime(sec) {
+            const mins = Math.floor(sec / 60);
+            const secs = (sec % 60).toFixed(2);
+            return `${mins}:${secs.padStart(5, '0')}`;
+        }
+
+        /**
+         * 2. VISUALIZACIÓN DE FORMA DE ONDA Y SELECCIÓN DE REGIÓN
+         */
+        function computeWaveformPeaks() {
+            const channelData = state.audioBuffer.getChannelData(0);
+            const numBins = 1200; // Resolución de la forma de onda
+            const blockSize = Math.floor(channelData.length / numBins);
+            const peaks = [];
+
+            for (let i = 0; i < numBins; i++) {
+                let start = i * blockSize;
+                let max = 0;
+                for (let j = 0; j < blockSize; j++) {
+                    const val = Math.abs(channelData[start + j] || 0);
+                    if (val > max) max = val;
+                }
+                peaks.push(max);
+            }
+            state.waveformPeaks = peaks;
+        }
+
+        function resizeCanvases() {
+            const dpr = window.devicePixelRatio || 1;
+            
+            // Waveform Canvas
+            const wRect = waveformCanvas.parentElement.getBoundingClientRect();
+            waveformCanvas.width = wRect.width * dpr;
+            waveformCanvas.height = wRect.height * dpr;
+            waveCtx.scale(dpr, dpr);
+            drawWaveform();
+
+            // MIDI Canvas
+            if (!document.getElementById('results-panel').classList.contains('hidden')) {
+                const mRect = midiCanvas.parentElement.getBoundingClientRect();
+                midiCanvas.width = mRect.width * dpr;
+                midiCanvas.height = mRect.height * dpr;
+                midiCtx.scale(dpr, dpr);
+                drawMidiPianoRoll();
+            }
+        }
+
+        window.addEventListener('resize', resizeCanvases);
+
+        function drawWaveform(playheadTime = null) {
+            const width = waveformCanvas.width / (window.devicePixelRatio || 1);
+            const height = waveformCanvas.height / (window.devicePixelRatio || 1);
+            const midY = height / 2;
+
+            waveCtx.clearRect(0, 0, width, height);
+
+            if (!state.waveformPeaks.length) return;
+
+            const startX = (state.regionStart / state.duration) * width;
+            const endX = (state.regionEnd / state.duration) * width;
+
+            // Fondo de la región seleccionada
+            waveCtx.fillStyle = 'rgba(99, 102, 241, 0.16)';
+            waveCtx.fillRect(startX, 0, endX - startX, height);
+
+            // Dibujar barras de la onda
+            const barWidth = width / state.waveformPeaks.length;
+            for (let i = 0; i < state.waveformPeaks.length; i++) {
+                const x = i * barWidth;
+                const amp = state.waveformPeaks[i] * (height * 0.85);
+                const isInside = x >= startX && x <= endX;
+
+                waveCtx.fillStyle = isInside ? '#818cf8' : '#3f3f46';
+                waveCtx.fillRect(x, midY - amp / 2, Math.max(1, barWidth - 0.5), Math.max(2, amp));
+            }
+
+            // Bordes de selección (Handles)
+            waveCtx.strokeStyle = '#6366f1';
+            waveCtx.lineWidth = 2;
+            
+            // Línea Inicio
+            waveCtx.beginPath();
+            waveCtx.moveTo(startX, 0);
+            waveCtx.lineTo(startX, height);
+            waveCtx.stroke();
+
+            // Línea Fin
+            waveCtx.beginPath();
+            waveCtx.moveTo(endX, 0);
+            waveCtx.lineTo(endX, height);
+            waveCtx.stroke();
+
+            // Tiradores visuales (Handles)
+            waveCtx.fillStyle = '#6366f1';
+            waveCtx.fillRect(startX - 4, 0, 8, 18);
+            waveCtx.fillRect(endX - 4, height - 18, 8, 18);
+
+            // Cabezal de reproducción (Playhead)
+            if (playheadTime !== null) {
+                const playX = (playheadTime / state.duration) * width;
+                waveCtx.strokeStyle = '#10b981';
+                waveCtx.lineWidth = 2;
+                waveCtx.beginPath();
+                waveCtx.moveTo(playX, 0);
+                waveCtx.lineTo(playX, height);
+                waveCtx.stroke();
+            }
+        }
+
+        function updateRegionUI() {
+            document.getElementById('region-start-time').textContent = state.regionStart.toFixed(2) + 's';
+            document.getElementById('region-end-time').textContent = state.regionEnd.toFixed(2) + 's';
+            document.getElementById('region-dur-time').textContent = (state.regionEnd - state.regionStart).toFixed(2) + 's';
+            drawWaveform();
+        }
+
+        // Interacción táctil y ratón sobre el Canvas de Forma de Onda
+        let dragMode = null; // 'start', 'end', 'new'
+        let dragAnchorTime = 0;
+
+        function getPointerTime(e) {
+            const rect = waveformCanvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const x = Math.max(0, Math.min(rect.width, clientX - rect.left));
+            return (x / rect.width) * state.duration;
+        }
+
+        function onPointerDown(e) {
+            if (!state.audioBuffer) return;
+            const clickTime = getPointerTime(e);
+            const rect = waveformCanvas.getBoundingClientRect();
+            const tolerance = (12 / rect.width) * state.duration; // 12px de tolerancia
+
+            if (Math.abs(clickTime - state.regionStart) < tolerance) {
+                dragMode = 'start';
+            } else if (Math.abs(clickTime - state.regionEnd) < tolerance) {
+                dragMode = 'end';
+            } else {
+                dragMode = 'new';
+                dragAnchorTime = clickTime;
+                state.regionStart = clickTime;
+                state.regionEnd = clickTime;
+            }
+            updateRegionUI();
+        }
+
+        function onPointerMove(e) {
+            if (!state.audioBuffer) return;
+            const currentTime = getPointerTime(e);
+
+            // Cambiar cursor al pasar cerca de los bordes
+            if (!dragMode && !e.touches) {
+                const rect = waveformCanvas.getBoundingClientRect();
+                const tolerance = (10 / rect.width) * state.duration;
+                if (Math.abs(currentTime - state.regionStart) < tolerance || Math.abs(currentTime - state.regionEnd) < tolerance) {
+                    waveformCanvas.style.cursor = 'ew-resize';
+                } else {
+                    waveformCanvas.style.cursor = 'crosshair';
+                }
+                return;
+            }
+
+            if (!dragMode) return;
+
+            if (dragMode === 'start') {
+                state.regionStart = Math.min(currentTime, state.regionEnd - 0.1);
+            } else if (dragMode === 'end') {
+                state.regionEnd = Math.max(currentTime, state.regionStart + 0.1);
+            } else if (dragMode === 'new') {
+                state.regionStart = Math.min(dragAnchorTime, currentTime);
+                state.regionEnd = Math.max(dragAnchorTime, currentTime);
+            }
+            updateRegionUI();
+        }
+
+        function onPointerUp() {
+            if (dragMode) {
+                // Asegurar duración mínima de 0.2s
+                if (state.regionEnd - state.regionStart < 0.2) {
+                    state.regionEnd = Math.min(state.duration, state.regionStart + 1.0);
+                    updateRegionUI();
+                }
+                dragMode = null;
+            }
+        }
+
+        waveformCanvas.addEventListener('mousedown', onPointerDown);
+        window.addEventListener('mousemove', onPointerMove);
+        window.addEventListener('mouseup', onPointerUp);
+
+        waveformCanvas.addEventListener('touchstart', onPointerDown, { passive: true });
+        window.addEventListener('touchmove', onPointerMove, { passive: true });
+        window.addEventListener('touchend', onPointerUp);
+
+        // Botón "Toda la pista"
+        document.getElementById('btn-select-all').addEventListener('click', () => {
+            if (!state.audioBuffer) return;
+            state.regionStart = 0;
+            state.regionEnd = state.duration;
+            updateRegionUI();
+        });
+
+        // Reproducción de la región seleccionada
+        const btnPlayRegion = document.getElementById('btn-play-region');
+        btnPlayRegion.addEventListener('click', () => {
+            if (state.isPlayingAudio) {
+                stopAudioPlayback();
+            } else {
+                playAudioRegion();
+            }
+        });
+
+        function playAudioRegion() {
+            if (!state.audioBuffer) return;
+            initAudioContext();
+            stopAudioPlayback();
+            stopMidiPlayback();
+
+            const source = state.audioCtx.createBufferSource();
+            source.buffer = state.audioBuffer;
+            source.connect(state.audioCtx.destination);
+
+            const duration = state.regionEnd - state.regionStart;
+            source.start(0, state.regionStart, duration);
+
+            state.activeSourceNode = source;
+            state.isPlayingAudio = true;
+            state.playbackStartTime = state.audioCtx.currentTime;
+            state.playbackOffset = state.regionStart;
+
+            document.getElementById('text-play').textContent = 'Detener';
+            document.getElementById('icon-play').innerHTML = '<rect x="5" y="5" width="10" height="10" rx="1"/>';
+
+            source.onended = () => {
+                if (state.isPlayingAudio) stopAudioPlayback();
+            };
+
+            function updatePlayhead() {
+                if (!state.isPlayingAudio) return;
+                const elapsed = state.audioCtx.currentTime - state.playbackStartTime;
+                const currentPos = state.playbackOffset + elapsed;
+                if (currentPos <= state.regionEnd) {
+                    drawWaveform(currentPos);
+                    state.animFrameId = requestAnimationFrame(updatePlayhead);
+                } else {
+                    stopAudioPlayback();
+                }
+            }
+            state.animFrameId = requestAnimationFrame(updatePlayhead);
+        }
+
+        function stopAudioPlayback() {
+            if (state.activeSourceNode) {
+                try { state.activeSourceNode.stop(); } catch (e) {}
+                state.activeSourceNode = null;
+            }
+            state.isPlayingAudio = false;
+            if (state.animFrameId) cancelAnimationFrame(state.animFrameId);
+            document.getElementById('text-play').textContent = 'Escuchar Región';
+            document.getElementById('icon-play').innerHTML = '<path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"/>';
+            drawWaveform();
+        }
+
+        /**
+         * 3. MOTOR DSP DE DETECCIÓN DE PERCUSIÓN POR BANDAS DE FRECUENCIA
+         */
+        ['kick', 'snare', 'hat'].forEach(type => {
+            const slider = document.getElementById(`sens-${type}`);
+            const label = document.getElementById(`val-${type}`);
+            slider.addEventListener('input', () => {
+                label.textContent = `${slider.value}%`;
+            });
+        });
+
+        document.getElementById('btn-analyze').addEventListener('click', async () => {
+            if (!state.audioBuffer) return;
+            stopAudioPlayback();
+            stopMidiPlayback();
+
+            const btn = document.getElementById('btn-analyze');
+            const originalHTML = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span>Analizando espectro...</span>';
+
+            try {
+                await extractDrumsFromRegion();
+            } catch (err) {
+                console.error(err);
+                showToast('Error al analizar la región de audio.', true);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
+            }
+        });
+
+        async function extractDrumsFromRegion() {
+            const sampleRate = state.audioBuffer.sampleRate;
+            const startSample = Math.floor(state.regionStart * sampleRate);
+            const endSample = Math.floor(state.regionEnd * sampleRate);
+            const lengthSamples = endSample - startSample;
+
+            if (lengthSamples <= 0) return;
+
+            // Extraer segmento mono mezclado
+            const offlineCtx = new OfflineAudioContext(1, lengthSamples, sampleRate);
+            const segmentBuffer = offlineCtx.createBuffer(1, lengthSamples, sampleRate);
+            const monoData = segmentBuffer.getChannelData(0);
+
+            const numChannels = state.audioBuffer.numberOfChannels;
+            for (let ch = 0; ch < numChannels; ch++) {
+                const chData = state.audioBuffer.getChannelData(ch);
+                for (let i = 0; i < lengthSamples; i++) {
+                    monoData[i] += (chData[startSample + i] || 0) / numChannels;
+                }
+            }
+
+            // Función auxiliar para filtrar una banda específica usando OfflineAudioContext
+            async function renderFilteredBand(filterSetupFn) {
+                const ctx = new OfflineAudioContext(1, lengthSamples, sampleRate);
+                const src = ctx.createBufferSource();
+                src.buffer = segmentBuffer;
+                const lastNode = filterSetupFn(ctx, src);
+                lastNode.connect(ctx.destination);
+                src.start(0);
+                const rendered = await ctx.startRendering();
+                return rendered.getChannelData(0);
+            }
+
+            // Renderizar 3 bandas paralelas en tiempo no real (ultra rápido)
+            const [kickSignal, snareSignal, hatSignal] = await Promise.all([
+                // 1. Banda Bombo (40Hz - 130Hz)
+                renderFilteredBand((ctx, src) => {
+                    const hp = ctx.createBiquadFilter();
+                    hp.type = 'highpass'; hp.frequency.value = 40;
+                    const lp = ctx.createBiquadFilter();
+                    lp.type = 'lowpass'; lp.frequency.value = 130; lp.Q.value = 1.2;
+                    src.connect(hp); hp.connect(lp);
+                    return lp;
+                }),
+                // 2. Banda Caja (200Hz - 2200Hz)
+                renderFilteredBand((ctx, src) => {
+                    const bp = ctx.createBiquadFilter();
+                    bp.type = 'bandpass'; bp.frequency.value = 750; bp.Q.value = 0.7;
+                    src.connect(bp);
+                    return bp;
+                }),
+                // 3. Banda Hi-Hat (> 6000Hz)
+                renderFilteredBand((ctx, src) => {
+                    const hp = ctx.createBiquadFilter();
+                    hp.type = 'highpass'; hp.frequency.value = 6000; hp.Q.value = 0.8;
+                    src.connect(hp);
+                    return hp;
+                })
+            ]);
+
+            // Algoritmo de detección de transientes (Onset Detection via Flux de Envolvente)
+            function detectOnsets(signal, sensitivityPercent, minIntervalSec, midiNote, type) {
+                const hopSize = Math.floor(sampleRate * 0.01); // Ventanas de 10ms
+                const numFrames = Math.floor(signal.length / hopSize);
+                const energies = new Float32Array(numFrames);
+
+                let maxEnergy = 0;
+                for (let f = 0; f < numFrames; f++) {
+                    let sumSq = 0;
+                    const offset = f * hopSize;
+                    for (let i = 0; i < hopSize; i++) {
+                        const s = signal[offset + i];
+                        sumSq += s * s;
+                    }
+                    const rms = Math.sqrt(sumSq / hopSize);
+                    energies[f] = rms;
+                    if (rms > maxEnergy) maxEnergy = rms;
+                }
+
+                if (maxEnergy === 0) return [];
+
+                // Calcular flujo positivo (incremento súbito de energía)
+                const flux = new Float32Array(numFrames);
+                let maxFlux = 0;
+                for (let f = 1; f < numFrames; f++) {
+                    const diff = Math.max(0, energies[f] - energies[f - 1] * 0.85);
+                    flux[f] = diff;
+                    if (diff > maxFlux) maxFlux = diff;
+                }
+
+                // Umbral inverso a la sensibilidad (mayor sensibilidad = umbral más bajo)
+                const thresholdRatio = 1.0 - (sensitivityPercent / 105);
+                const threshold = maxFlux * Math.max(0.05, thresholdRatio);
+                const minGapFrames = Math.ceil(minIntervalSec / 0.01);
+
+                const hits = [];
+                let lastHitFrame = -minGapFrames;
+
+                for (let f = 1; f < numFrames - 1; f++) {
+                    if (flux[f] > threshold && flux[f] >= flux[f - 1] && flux[f] > flux[f + 1]) {
+                        if (f - lastHitFrame >= minGapFrames) {
+                            // Calcular velocidad MIDI (45 a 127) basada en la energía del pico
+                            const normVel = Math.min(1, energies[f] / (maxEnergy * 0.85));
+                            const velocity = Math.round(45 + normVel * 82);
+
+                            hits.push({
+                                time: f * 0.01,
+                                type: type,
+                                midiNote: midiNote,
+                                velocity: velocity
+                            });
+                            lastHitFrame = f;
+                        }
+                    }
+                }
+                return hits;
+            }
+
+            const kickSens = parseInt(document.getElementById('sens-kick').value);
+            const snareSens = parseInt(document.getElementById('sens-snare').value);
+            const hatSens = parseInt(document.getElementById('sens-hat').value);
+
+            const kicks = detectOnsets(kickSignal, kickSens, 0.11, 36, 'kick');   // GM 36: Bass Drum 1
+            const snares = detectOnsets(snareSignal, snareSens, 0.12, 38, 'snare'); // GM 38: Acoustic Snare
+            const hats = detectOnsets(hatSignal, hatSens, 0.07, 42, 'hat');      // GM 42: Closed Hi-Hat
+
+            // Combinar y ordenar cronológicamente
+            state.detectedHits = [...kicks, ...snares, ...hats].sort((a, b) => a.time - b.time);
+
+            // Mostrar resultados
+            const resultsPanel = document.getElementById('results-panel');
+            resultsPanel.classList.remove('hidden');
+            
+            document.getElementById('hits-summary').textContent = 
+                `Detectados: ${kicks.length} Bombos, ${snares.length} Cajas y ${hats.length} Hi-Hats (Total: ${state.detectedHits.length} eventos)`;
+
+            resizeCanvases();
+            showToast(`¡Extracción completada! ${state.detectedHits.length} golpes detectados.`);
+        }
+
+        /**
+         * 4. VISUALIZACIÓN DEL PIANO ROLL DE BATERÍA
+         */
+        function drawMidiPianoRoll(playheadRelTime = null) {
+            const width = midiCanvas.width / (window.devicePixelRatio || 1);
+            const height = midiCanvas.height / (window.devicePixelRatio || 1);
+            const regionDur = state.regionEnd - state.regionStart;
+
+            midiCtx.clearRect(0, 0, width, height);
+
+            const rowHeight = height / 3;
+            const rows = [
+                { label: 'Hi-Hat (F#1)', color: '#06b6d4', y: 0 },
+                { label: 'Snare (D1)', color: '#f59e0b', y: rowHeight },
+                { label: 'Kick (C1)', color: '#f43f5e', y: rowHeight * 2 }
+            ];
+
+            // Líneas divisoras de carriles y etiquetas
+            rows.forEach((row, idx) => {
+                midiCtx.fillStyle = idx % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent';
+                midiCtx.fillRect(0, row.y, width, rowHeight);
+
+                midiCtx.strokeStyle = '#27272a';
+                midiCtx.lineWidth = 1;
+                midiCtx.beginPath();
+                midiCtx.moveTo(0, row.y);
+                midiCtx.lineTo(width, row.y);
+                midiCtx.stroke();
+
+                midiCtx.fillStyle = '#71717a';
+                midiCtx.font = '600 11px Inter, sans-serif';
+                midiCtx.fillText(row.label, 10, row.y + 18);
+            });
+
+            // Rejilla de tiempo (subdivisiones cada 0.5s)
+            midiCtx.strokeStyle = 'rgba(63, 63, 70, 0.4)';
+            for (let t = 0.5; t < regionDur; t += 0.5) {
+                const gx = (t / regionDur) * width;
+                midiCtx.beginPath();
+                midiCtx.moveTo(gx, 0);
+                midiCtx.lineTo(gx, height);
+                midiCtx.stroke();
+            }
+
+            // Dibujar notas MIDI detectadas
+            state.detectedHits.forEach(hit => {
+                const x = (hit.time / regionDur) * width;
+                let rowIdx = 2;
+                let color = '#f43f5e';
+                if (hit.type === 'hat') { rowIdx = 0; color = '#06b6d4'; }
+                else if (hit.type === 'snare') { rowIdx = 1; color = '#f59e0b'; }
+
+                const y = rowIdx * rowHeight + 8;
+                const h = rowHeight - 16;
+                const alpha = 0.4 + (hit.velocity / 127) * 0.6;
+
+                midiCtx.fillStyle = color;
+                midiCtx.globalAlpha = alpha;
+                midiCtx.beginPath();
+                midiCtx.roundRect(x, y, Math.max(6, width * 0.008), h, 4);
+                midiCtx.fill();
+                midiCtx.globalAlpha = 1.0;
+            });
+
+            // Cabezal de previsualización MIDI
+            if (playheadRelTime !== null) {
+                const px = (playheadRelTime / regionDur) * width;
+                midiCtx.strokeStyle = '#10b981';
+                midiCtx.lineWidth = 2;
+                midiCtx.beginPath();
+                midiCtx.moveTo(px, 0);
+                midiCtx.lineTo(px, height);
+                midiCtx.stroke();
+            }
+        }
+
+        /**
+         * 5. SINTETIZADOR DE PREVISUALIZACIÓN DE BATERÍA (WEB AUDIO API)
+         */
+        function triggerSynthDrum(type, velocity) {
+            initAudioContext();
+            const now = state.audioCtx.currentTime;
+            const gainVal = (velocity / 127) * 0.8;
+
+            if (type === 'kick') {
+                const osc = state.audioCtx.createOscillator();
+                const gain = state.audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(140, now);
+                osc.frequency.exponentialRampToValueAtTime(42, now + 0.12);
+
+                gain.gain.setValueAtTime(gainVal, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+
+                osc.connect(gain);
+                gain.connect(state.audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.25);
+            } 
+            else if (type === 'snare') {
+                // Ruido blanco + cuerpo tonal
+                const bufferSize = state.audioCtx.sampleRate * 0.18;
+                const buffer = state.audioCtx.createBuffer(1, bufferSize, state.audioCtx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+                const noise = state.audioCtx.createBufferSource();
+                noise.buffer = buffer;
+
+                const filter = state.audioCtx.createBiquadFilter();
+                filter.type = 'highpass';
+                filter.frequency.value = 1000;
+
+                const gain = state.audioCtx.createGain();
+                gain.gain.setValueAtTime(gainVal * 0.85, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(state.audioCtx.destination);
+                noise.start(now);
+            } 
+            else if (type === 'hat') {
+                const bufferSize = state.audioCtx.sampleRate * 0.06;
+                const buffer = state.audioCtx.createBuffer(1, bufferSize, state.audioCtx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+
+                const noise = state.audioCtx.createBufferSource();
+                noise.buffer = buffer;
+
+                const filter = state.audioCtx.createBiquadFilter();
+                filter.type = 'highpass';
+                filter.frequency.value = 7000;
+
+                const gain = state.audioCtx.createGain();
+                gain.gain.setValueAtTime(gainVal * 0.5, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(state.audioCtx.destination);
+                noise.start(now);
+            }
+        }
+
+        document.getElementById('btn-preview-midi').addEventListener('click', () => {
+            if (state.isPlayingMidi) {
+                stopMidiPlayback();
+            } else {
+                playMidiPreview();
+            }
+        });
+
+        function playMidiPreview() {
+            if (!state.detectedHits.length) {
+                showToast('No hay notas MIDI para reproducir.', true);
+                return;
+            }
+            stopAudioPlayback();
+            stopMidiPlayback();
+
+            state.isPlayingMidi = true;
+            const btn = document.getElementById('btn-preview-midi');
+            btn.querySelector('span').textContent = 'Detener Batería';
+
+            const startTime = performance.now();
+            const regionDur = state.regionEnd - state.regionStart;
+
+            // Programar golpes
+            state.detectedHits.forEach(hit => {
+                const id = setTimeout(() => {
+                    if (state.isPlayingMidi) triggerSynthDrum(hit.type, hit.velocity);
+                }, hit.time * 1000);
+                state.midiTimeouts.push(id);
+            });
+
+            // Fin de reproducción
+            const endId = setTimeout(() => {
+                stopMidiPlayback();
+            }, regionDur * 1000 + 150);
+            state.midiTimeouts.push(endId);
+
+            // Animar playhead en piano roll
+            function animateMidiPlayhead() {
+                if (!state.isPlayingMidi) return;
+                const elapsed = (performance.now() - startTime) / 1000;
+                if (elapsed <= regionDur) {
+                    drawMidiPianoRoll(elapsed);
+                    requestAnimationFrame(animateMidiPlayhead);
+                }
+            }
+            requestAnimationFrame(animateMidiPlayhead);
+        }
+
+        function stopMidiPlayback() {
+            state.isPlayingMidi = false;
+            state.midiTimeouts.forEach(id => clearTimeout(id));
+            state.midiTimeouts = [];
+            const btn = document.getElementById('btn-preview-midi');
+            if (btn) btn.querySelector('span').textContent = 'Escuchar Batería Sintetizada';
+            drawMidiPianoRoll();
+        }
+
+        /**
+         * 6. CODIFICADOR BINARIO DE ARCHIVO MIDI ESTÁNDAR (SMF FORMAT 0)
+         */
+        function encodeVariableLengthQuantity(value) {
+            let buffer = value & 0x7F;
+            const bytes = [];
+            while ((value >>= 7) > 0) {
+                buffer <<= 8;
+                buffer |= ((value & 0x7F) | 0x80);
+            }
+            while (true) {
+                bytes.push(buffer & 0xFF);
+                if (buffer & 0x80) buffer >>= 8;
+                else break;
+            }
+            return bytes;
+        }
+
+        function generateStandardMidiBlob(hits, bpm) {
+            const ticksPerQuarterNote = 480;
+            const microsecondsPerBeat = Math.round(60000000 / bpm);
+            const ticksPerSecond = (bpm / 60) * ticksPerQuarterNote;
+
+            // Convertir golpes en eventos NoteOn y NoteOff con ticks absolutos
+            const rawEvents = [];
+            const noteDurationTicks = Math.round(ticksPerQuarterNote / 8); // semicorchea corta
+
+            hits.forEach(hit => {
+                const startTick = Math.round(hit.time * ticksPerSecond);
+                // Canal 9 (0-indexed) = Canal 10 General MIDI (Batería)
+                rawEvents.push({
+                    tick: startTick,
+                    status: 0x99, // Note On Ch 10
+                    data1: hit.midiNote,
+                    data2: hit.velocity
+                });
+                rawEvents.push({
+                    tick: startTick + noteDurationTicks,
+                    status: 0x89, // Note Off Ch 10
+                    data1: hit.midiNote,
+                    data2: 0
+                });
+            });
+
+            // Ordenar eventos por tick absoluto
+            rawEvents.sort((a, b) => a.tick - b.tick);
+
+            // Construir bytes de la pista (MTrk)
+            const trackBytes = [];
+
+            // Meta Evento: Set Tempo (FF 51 03 tt tt tt)
+            trackBytes.push(0x00, 0xFF, 0x51, 0x03);
+            trackBytes.push((microsecondsPerBeat >> 16) & 0xFF);
+            trackBytes.push((microsecondsPerBeat >> 8) & 0xFF);
+            trackBytes.push(microsecondsPerBeat & 0xFF);
+
+            let lastTick = 0;
+            rawEvents.forEach(ev => {
+                const deltaTicks = Math.max(0, ev.tick - lastTick);
+                lastTick = ev.tick;
+                trackBytes.push(...encodeVariableLengthQuantity(deltaTicks));
+                trackBytes.push(ev.status, ev.data1, ev.data2);
+            });
+
+            // Meta Evento: End of Track (FF 2F 00)
+            trackBytes.push(0x00, 0xFF, 0x2F, 0x00);
+
+            // Cabecera MIDI (MThd - 14 bytes)
+            const headerBytes = [
+                0x4D, 0x54, 0x68, 0x64, // "MThd"
+                0x00, 0x00, 0x00, 0x06, // Longitud cabecera = 6
+                0x00, 0x00,             // Formato 0 (Single Track)
+                0x00, 0x01,             // 1 pista
+                (ticksPerQuarterNote >> 8) & 0xFF,
+                ticksPerQuarterNote & 0xFF
+            ];
+
+            // Cabecera de Pista (MTrk - 8 bytes)
+            const trackLen = trackBytes.length;
+            const trackHeaderBytes = [
+                0x4D, 0x54, 0x72, 0x6B, // "MTrk"
+                (trackLen >> 24) & 0xFF,
+                (trackLen >> 16) & 0xFF,
+                (trackLen >> 8) & 0xFF,
+                trackLen & 0xFF
+            ];
+
+            const midiFileArray = new Uint8Array([
+                ...headerBytes,
+                ...trackHeaderBytes,
+                ...trackBytes
+            ]);
+
+            return new Blob([midiFileArray], { type: 'audio/midi' });
+        }
+
+        document.getElementById('btn-download-midi').addEventListener('click', () => {
+            if (!state.detectedHits.length) {
+                showToast('No hay golpes detectados para exportar.', true);
+                return;
+            }
+
+            const bpm = Math.max(40, Math.min(240, parseInt(document.getElementById('bpm-input').value) || 120));
+            const midiBlob = generateStandardMidiBlob(state.detectedHits, bpm);
+            
+            const url = URL.createObjectURL(midiBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${state.fileName}_drums_${bpm}bpm.mid`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            showToast('Archivo MIDI descargado correctamente.');
+        });
+    </script>
+</body>
+</html>
