@@ -40,6 +40,11 @@ https://bruveping.github.io/pruebas_pagina_web_2026/analiza_bateria_2026_11/
 Circulo_de_Quintas [Circulo_de_Quintas](https://bruveping.github.io/pruebas_pagina_web_2026/Circulo_de_Quintas/) <br>
 https://bruveping.github.io/pruebas_pagina_web_2026/Circulo_de_Quintas/ 
 
+## Calculadora_de_Prestamo_Modal
+Calculadora_de_Prestamo_Modal [Calculadora_de_Prestamo_Modal](https://bruveping.github.io/pruebas_pagina_web_2026/Calculadora_de_Prestamo_Modal/) <br>
+https://bruveping.github.io/pruebas_pagina_web_2026/Calculadora_de_Prestamo_Modal/ 
+
+
 
 
 
