@@ -36,6 +36,11 @@ https://bruveping.github.io/pruebas_pagina_web_2026/alphatext_analizador/
 analiza_bateria_2026_11 [analiza_bateria_2026_11](https://bruveping.github.io/pruebas_pagina_web_2026/analiza_bateria_2026_11/) <br>
 https://bruveping.github.io/pruebas_pagina_web_2026/analiza_bateria_2026_11/
 
+## Circulo_de_Quintas
+Circulo_de_Quintas [Circulo_de_Quintas](https://bruveping.github.io/pruebas_pagina_web_2026/Circulo_de_Quintas/) <br>
+https://bruveping.github.io/pruebas_pagina_web_2026/Circulo_de_Quintas/ 
+
+
 
 
 
