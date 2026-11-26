@@ -1,0 +1,2574 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="studio">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Círculo de Quintas Interactivo — Teoría Musical & Síntesis Web Audio</title>
+  <style>
+    /* ==========================================================================
+       1. VARIABLES DE DISEÑO Y TEMAS VISUALES (STUDIO DARK, NEON CYBER, EDITORIAL)
+       ========================================================================== */
+    :root {
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      --font-serif: 'Georgia', 'Times New Roman', serif;
+      --radius-sm: 6px;
+      --radius-md: 12px;
+      --radius-lg: 18px;
+      --transition-fast: 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+      --transition-smooth: 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    /* Tema 1: Studio Dark (Estilo DAW Moderno / Ableton / Logic) */
+    [data-theme="studio"] {
+      --bg-app: #121418;
+      --bg-panel: #1a1d24;
+      --bg-card: #222630;
+      --bg-hover: #2c313e;
+      --border-color: #313644;
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --accent-primary: #f59e0b;      /* Ámbar DAW */
+      --accent-secondary: #38bdf8;    /* Cian eléctrico */
+      --accent-tertiary: #a855f7;     /* Violeta modal */
+      --accent-glow: rgba(245, 158, 11, 0.28);
+      --wheel-outer: #1e222b;
+      --wheel-mid: #181b22;
+      --wheel-inner: #13161c;
+      --wheel-stroke: #333948;
+      --sector-active: #f59e0b;
+      --sector-active-text: #0f1115;
+      --sector-diatonic-maj: rgba(56, 189, 248, 0.24);
+      --sector-diatonic-min: rgba(168, 85, 247, 0.26);
+      --sector-diatonic-dim: rgba(244, 63, 94, 0.28);
+      --poly-stroke: #38bdf8;
+      --poly-fill: rgba(56, 189, 248, 0.12);
+      --chord-poly: #f59e0b;
+      --staff-ink: #e2e8f0;
+      --font-display: var(--font-sans);
+    }
+
+    /* Tema 2: Neon Cyber / Synthwave */
+    [data-theme="neon"] {
+      --bg-app: #070510;
+      --bg-panel: #0e0a1f;
+      --bg-card: #161030;
+      --bg-hover: #211847;
+      --border-color: #36246b;
+      --text-primary: #fdf4ff;
+      --text-secondary: #c4b5fd;
+      --text-muted: #7c3aed;
+      --accent-primary: #ff2a85;      /* Magenta Neón */
+      --accent-secondary: #00f0ff;    /* Cian Neón */
+      --accent-tertiary: #ffe600;     /* Amarillo Láser */
+      --accent-glow: rgba(255, 42, 133, 0.45);
+      --wheel-outer: #110c26;
+      --wheel-mid: #0c081c;
+      --wheel-inner: #080514;
+      --wheel-stroke: #3b237a;
+      --sector-active: #ff2a85;
+      --sector-active-text: #ffffff;
+      --sector-diatonic-maj: rgba(0, 240, 255, 0.24);
+      --sector-diatonic-min: rgba(192, 132, 252, 0.28);
+      --sector-diatonic-dim: rgba(255, 230, 0, 0.26);
+      --poly-stroke: #00f0ff;
+      --poly-fill: rgba(0, 240, 255, 0.14);
+      --chord-poly: #ffe600;
+      --staff-ink: #00f0ff;
+      --font-display: var(--font-sans);
+    }
+
+    /* Tema 3: Minimalista Editorial / Papel Clásico */
+    [data-theme="editorial"] {
+      --bg-app: #f4f1ea;
+      --bg-panel: #faf8f4;
+      --bg-card: #efebe1;
+      --bg-hover: #e5dfd2;
+      --border-color: #d3cbb8;
+      --text-primary: #1c1917;
+      --text-secondary: #57534e;
+      --text-muted: #8c857b;
+      --accent-primary: #b91c1c;      /* Carmesí Editorial */
+      --accent-secondary: #1d4ed8;    /* Azul Tinta */
+      --accent-tertiary: #047857;     /* Verde Esmeralda */
+      --accent-glow: rgba(185, 28, 18, 0.16);
+      --wheel-outer: #faf8f4;
+      --wheel-mid: #f2eee6;
+      --wheel-inner: #e8e2d5;
+      --wheel-stroke: #bfb6a3;
+      --sector-active: #b91c1c;
+      --sector-active-text: #faf8f4;
+      --sector-diatonic-maj: rgba(29, 78, 216, 0.16);
+      --sector-diatonic-min: rgba(4, 120, 87, 0.18);
+      --sector-diatonic-dim: rgba(180, 83, 9, 0.20);
+      --poly-stroke: #1d4ed8;
+      --poly-fill: rgba(29, 78, 216, 0.08);
+      --chord-poly: #b91c1c;
+      --staff-ink: #1c1917;
+      --font-display: var(--font-serif);
+    }
+
+    /* ==========================================================================
+       2. RESET Y LAYOUT GLOBAL RESPONSIVO
+       ========================================================================== */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-app);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      transition: background-color 0.3s ease, color 0.3s ease;
+      overflow-x: hidden;
+    }
+
+    /* ==========================================================================
+       3. CABECERA Y BARRA DE HERRAMIENTAS SUPERIOR
+       ========================================================================== */
+    header {
+      background-color: var(--bg-panel);
+      border-bottom: 1px solid var(--border-color);
+      padding: 0.75rem 1.25rem;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      position: sticky;
+      top: 0;
+      z-index: 30;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+    }
+
+    .brand-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+      display: grid;
+      place-items: center;
+      color: #fff;
+      font-weight: 800;
+      font-size: 0.95rem;
+      box-shadow: 0 0 14px var(--accent-glow);
+    }
+
+    .brand h1 {
+      font-family: var(--font-display);
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .brand span {
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+      display: block;
+    }
+
+    .header-controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .pill-group {
+      display: inline-flex;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 999px;
+      padding: 3px;
+      gap: 2px;
+    }
+
+    .pill-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.35rem 0.75rem;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .pill-btn:hover {
+      color: var(--text-primary);
+    }
+
+    .pill-btn.active {
+      background: var(--accent-primary);
+      color: var(--sector-active-text);
+      box-shadow: 0 2px 8px var(--accent-glow);
+    }
+
+    .toggle-btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      font-size: 0.76rem;
+      font-weight: 600;
+      padding: 0.4rem 0.8rem;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: all var(--transition-fast);
+    }
+
+    .toggle-btn:hover {
+      background: var(--bg-hover);
+      border-color: var(--accent-primary);
+    }
+
+    .toggle-btn.active {
+      border-color: var(--accent-secondary);
+      color: var(--accent-secondary);
+      background: rgba(56, 189, 248, 0.1);
+    }
+
+    /* ==========================================================================
+       4. GRID PRINCIPAL DE LA APLICACIÓN (3 COLUMNAS EN ESCRITORIO)
+       ========================================================================== */
+    .workspace {
+      display: grid;
+      grid-template-columns: 320px minmax(360px, 1fr) 360px;
+      gap: 1rem;
+      padding: 1rem 1.25rem;
+      flex: 1;
+      max-width: 1680px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    @media (max-width: 1240px) {
+      .workspace {
+        grid-template-columns: 1fr 1fr;
+      }
+      .wheel-stage {
+        grid-column: 1 / -1;
+        order: -1;
+      }
+    }
+
+    @media (max-width: 820px) {
+      .workspace {
+        grid-template-columns: 1fr;
+        padding: 0.75rem;
+      }
+    }
+
+    /* ==========================================================================
+       5. TARJETAS Y CONTROLES DE PANELES LATERALES
+       ========================================================================== */
+    .panel-column {
+      display: flex;
+      flex-direction: column;
+      gap: 0.9rem;
+    }
+
+    .card {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 1rem;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.75rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .card-title {
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 0.45rem;
+    }
+
+    .badge {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
+      background: var(--bg-card);
+      color: var(--accent-secondary);
+      border: 1px solid var(--border-color);
+    }
+
+    /* Selector de Modos Griegos */
+    .mode-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.4rem;
+    }
+
+    .mode-btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      padding: 0.48rem 0.6rem;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      text-align: left;
+      transition: all var(--transition-fast);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .mode-btn:hover {
+      background: var(--bg-hover);
+      border-color: var(--accent-secondary);
+    }
+
+    .mode-btn.active {
+      background: var(--accent-secondary);
+      color: #0b0f17;
+      border-color: var(--accent-secondary);
+      font-weight: 700;
+    }
+
+    .mode-btn .mode-name {
+      font-size: 0.82rem;
+      font-weight: 600;
+    }
+
+    .mode-btn .mode-formula {
+      font-family: var(--font-mono);
+      font-size: 0.66rem;
+      opacity: 0.8;
+    }
+
+    /* Sliders de Síntesis y Armonía */
+    .slider-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .slider-item {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+    }
+
+    .slider-label-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+    }
+
+    .slider-value {
+      font-family: var(--font-mono);
+      color: var(--accent-primary);
+      font-weight: 600;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 6px;
+      background: var(--bg-card);
+      border-radius: 999px;
+      border: 1px solid var(--border-color);
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--accent-primary);
+      cursor: pointer;
+      box-shadow: 0 0 8px var(--accent-glow);
+      transition: transform 0.1s ease;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.18);
+    }
+
+    /* Secuenciador y Progresiones */
+    .transport-bar {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .btn-play {
+      flex: 1;
+      background: var(--accent-primary);
+      color: var(--sector-active-text);
+      border: none;
+      border-radius: var(--radius-sm);
+      padding: 0.55rem 0.9rem;
+      font-weight: 700;
+      font-size: 0.82rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.45rem;
+      box-shadow: 0 3px 12px var(--accent-glow);
+      transition: transform 0.12s ease, filter 0.15s ease;
+    }
+
+    .btn-play:hover {
+      filter: brightness(1.08);
+    }
+
+    .btn-play:active {
+      transform: scale(0.97);
+    }
+
+    .btn-play.playing {
+      background: #ef4444;
+      color: #fff;
+    }
+
+    .arp-mode-select {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      border-radius: var(--radius-sm);
+      padding: 0 0.6rem;
+      font-size: 0.76rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .progression-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+    }
+
+    .prog-btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      padding: 0.5rem 0.7rem;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: all var(--transition-fast);
+    }
+
+    .prog-btn:hover {
+      background: var(--bg-hover);
+      border-color: var(--accent-primary);
+    }
+
+    .prog-btn.active {
+      border-color: var(--accent-primary);
+      background: rgba(245, 158, 11, 0.14);
+    }
+
+    .prog-name {
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+
+    .prog-numerals {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--accent-secondary);
+    }
+
+    /* ==========================================================================
+       6. ESCENARIO CENTRAL: RUEDA SVG DEL CÍRCULO DE QUINTAS
+       ========================================================================== */
+    .wheel-stage {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stage-hud-top {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 0.5rem;
+      z-index: 5;
+    }
+
+    .tonality-readout {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .tonality-readout .eyebrow {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-secondary);
+    }
+
+    .tonality-readout .main-key {
+      font-family: var(--font-display);
+      font-size: 1.75rem;
+      font-weight: 800;
+      color: var(--accent-primary);
+      line-height: 1.15;
+    }
+
+    .tonality-readout .scale-notes {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: var(--accent-secondary);
+      margin-top: 0.2rem;
+    }
+
+    .active-chord-pill {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 0.5rem 0.85rem;
+      text-align: right;
+    }
+
+    .active-chord-pill .label {
+      font-size: 0.68rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+    }
+
+    .active-chord-pill .chord-name {
+      font-family: var(--font-mono);
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .active-chord-pill .chord-tones {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      color: var(--accent-primary);
+    }
+
+    .svg-wrapper {
+      width: 100%;
+      max-width: 580px;
+      aspect-ratio: 1 / 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0.25rem 0;
+      position: relative;
+    }
+
+    svg#fifths-wheel {
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+      user-select: none;
+    }
+
+    /* Rotación suave del grupo principal de la rueda */
+    #wheel-rotatable {
+      transform-origin: 300px 300px;
+      transition: transform var(--transition-smooth);
+    }
+
+    .sector-path {
+      stroke: var(--wheel-stroke);
+      stroke-width: 1.2;
+      cursor: pointer;
+      transition: fill 0.18s ease, filter 0.18s ease, stroke 0.18s ease;
+    }
+
+    .sector-outer { fill: var(--wheel-outer); }
+    .sector-mid { fill: var(--wheel-mid); }
+    .sector-inner { fill: var(--wheel-inner); }
+
+    .sector-group:hover .sector-path {
+      filter: brightness(1.22);
+      stroke: var(--accent-primary);
+    }
+
+    .sector-path.in-scale-maj {
+      fill: var(--sector-diatonic-maj);
+      stroke: var(--accent-secondary);
+      stroke-width: 1.5;
+    }
+
+    .sector-path.in-scale-min {
+      fill: var(--sector-diatonic-min);
+      stroke: var(--accent-tertiary);
+      stroke-width: 1.5;
+    }
+
+    .sector-path.in-scale-dim {
+      fill: var(--sector-diatonic-dim);
+      stroke: #f43f5e;
+      stroke-width: 1.5;
+    }
+
+    .sector-path.in-dim-axis {
+      fill: rgba(244, 63, 94, 0.12);
+      stroke: rgba(244, 63, 94, 0.65);
+      stroke-dasharray: 3 2;
+      stroke-width: 1.2;
+    }
+
+    .sector-path.is-tonic {
+      fill: var(--sector-active) !important;
+      stroke: var(--accent-primary);
+      stroke-width: 2.2;
+    }
+
+    .sector-path.is-sounding {
+      fill: var(--accent-secondary) !important;
+      filter: drop-shadow(0 0 12px var(--accent-secondary));
+    }
+
+    /* Cartelito flotante explicativo (Tooltip en mouseover) */
+    .wheel-tooltip {
+      position: fixed;
+      pointer-events: none;
+      z-index: 100;
+      background: var(--bg-panel);
+      border: 1px solid var(--accent-primary);
+      border-radius: var(--radius-md);
+      padding: 0.65rem 0.85rem;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+      max-width: 270px;
+      opacity: 0;
+      transform: translateY(6px);
+      transition: opacity 0.15s ease, transform 0.15s ease;
+    }
+
+    .wheel-tooltip.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .tooltip-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .tooltip-title {
+      font-family: var(--font-display);
+      font-weight: 800;
+      font-size: 0.95rem;
+      color: var(--text-primary);
+    }
+
+    .tooltip-badge {
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 0.12rem 0.45rem;
+      border-radius: 999px;
+      background: var(--bg-card);
+      color: var(--accent-primary);
+      border: 1px solid var(--border-color);
+    }
+
+    .tooltip-badge.is-diatonic {
+      background: rgba(56, 189, 248, 0.18);
+      color: var(--accent-secondary);
+      border-color: var(--accent-secondary);
+    }
+
+    .tooltip-body {
+      font-size: 0.76rem;
+      line-height: 1.4;
+      color: var(--text-secondary);
+    }
+
+    .tooltip-formula {
+      margin-top: 0.35rem;
+      padding-top: 0.3rem;
+      border-top: 1px solid var(--border-color);
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--accent-primary);
+    }
+
+    .sector-label {
+      pointer-events: none;
+      text-anchor: middle;
+      dominant-baseline: central;
+      font-family: var(--font-display);
+      fill: var(--text-primary);
+      transition: transform var(--transition-smooth), fill 0.18s ease;
+    }
+
+    .sector-label.outer-text {
+      font-size: 16px;
+      font-weight: 800;
+    }
+
+    .sector-label.mid-text {
+      font-size: 12.5px;
+      font-weight: 600;
+      fill: var(--text-secondary);
+    }
+
+    .sector-label.inner-text {
+      font-size: 10px;
+      font-family: var(--font-mono);
+      fill: var(--text-muted);
+    }
+
+    .sector-label.sig-text {
+      font-size: 9.5px;
+      font-family: var(--font-mono);
+      fill: var(--accent-secondary);
+    }
+
+    .sector-group.active-text .sector-label {
+      fill: var(--sector-active-text) !important;
+    }
+
+    /* Polígonos geométricos internos (Escala y Acorde Activo) */
+    #scale-polygon {
+      fill: var(--poly-fill);
+      stroke: var(--poly-stroke);
+      stroke-width: 1.8;
+      stroke-linejoin: round;
+      transition: all 0.35s ease;
+      cursor: help;
+    }
+
+    #chord-polygon {
+      fill: rgba(245, 158, 11, 0.18);
+      stroke: var(--chord-poly);
+      stroke-width: 2.6;
+      stroke-linejoin: round;
+      cursor: help;
+      transition: all 0.22s ease;
+    }
+
+    .dim-axis-line {
+      stroke: #f43f5e;
+      stroke-width: 1.6;
+      stroke-dasharray: 4 3;
+      opacity: 0.78;
+      cursor: help;
+      transition: opacity 0.2s ease, stroke-width 0.2s ease;
+    }
+
+    .dim-axis-line:hover {
+      opacity: 1;
+      stroke-width: 2.6;
+    }
+
+    .dim-axis-node {
+      fill: #f43f5e;
+      stroke: var(--bg-panel);
+      stroke-width: 1.4;
+      pointer-events: none;
+    }
+
+    .geo-node {
+      cursor: help;
+      transition: all 0.25s ease;
+    }
+
+    /* Leyenda inferior de la rueda */
+    .stage-hud-bottom {
+      width: 100%;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 1rem;
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+      padding-top: 0.4rem;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    /* ==========================================================================
+       7. PANEL EDUCATIVO DERECHO (PENTAGRAMA, GRADOS DIATÓNICOS, MODULACIÓN)
+       ========================================================================== */
+    .staff-container {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 0.5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .staff-caption {
+      font-size: 0.74rem;
+      color: var(--text-secondary);
+      margin-top: 0.25rem;
+      font-family: var(--font-mono);
+    }
+
+    /* Tabla de Grados Diatónicos */
+    .degrees-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.78rem;
+    }
+
+    .degrees-table th {
+      text-align: left;
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      padding: 0.35rem 0.4rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .degrees-table td {
+      padding: 0.42rem 0.4rem;
+      border-bottom: 1px solid rgba(128, 128, 128, 0.12);
+    }
+
+    .degree-row {
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+
+    .degree-row:hover {
+      background: var(--bg-hover);
+    }
+
+    .degree-row.playing-row {
+      background: rgba(245, 158, 11, 0.2);
+    }
+
+    .roman-cell {
+      font-family: var(--font-serif);
+      font-weight: 700;
+      color: var(--accent-secondary);
+    }
+
+    .chord-cell {
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .func-cell {
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+    }
+
+    .play-mini-btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      color: var(--accent-primary);
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      font-size: 0.68rem;
+      transition: all 0.15s ease;
+    }
+
+    .play-mini-btn:hover {
+      background: var(--accent-primary);
+      color: var(--sector-active-text);
+    }
+
+    /* Modulación Inteligente */
+    .mod-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0.45rem;
+    }
+
+    .mod-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 0.55rem 0.7rem;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: all var(--transition-fast);
+    }
+
+    .mod-card:hover {
+      border-color: var(--accent-tertiary);
+      background: var(--bg-hover);
+    }
+
+    .mod-info {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .mod-type {
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--accent-tertiary);
+      font-weight: 700;
+    }
+
+    .mod-desc {
+      font-size: 0.76rem;
+      color: var(--text-secondary);
+    }
+
+    .mod-target {
+      font-family: var(--font-mono);
+      font-weight: 800;
+      font-size: 0.9rem;
+      color: var(--text-primary);
+      background: var(--bg-panel);
+      padding: 0.25rem 0.55rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-color);
+    }
+
+    /* Toast de notificación no intrusivo */
+    .audio-banner {
+      position: fixed;
+      bottom: 1rem;
+      right: 1rem;
+      background: var(--bg-card);
+      border: 1px solid var(--accent-primary);
+      color: var(--text-primary);
+      padding: 0.55rem 0.9rem;
+      border-radius: 999px;
+      font-size: 0.76rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+      z-index: 50;
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+
+    .audio-banner.hidden {
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(12px);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ========================================================================
+       CABECERA PRINCIPAL: TÍTULO, ROTACIÓN Y SELECTOR DE TEMA
+       ======================================================================== -->
+  <header>
+    <div class="brand">
+      <div class="brand-icon">5ᵗʰ</div>
+      <div>
+        <h1>Círculo de Quintas</h1>
+        <span>Explorador Armónico, Geometría Modal &amp; Sintetizador Polifónico</span>
+      </div>
+    </div>
+
+    <div class="header-controls">
+      <!-- Interruptor de Rotación Física -->
+      <button id="btn-rotate-toggle" class="toggle-btn active" title="Rotar rueda para situar la tónica a las 12 en punto">
+        <span>⟳</span> Rotar Tónica a las 12h: <strong id="rotate-state-label">ON</strong>
+      </button>
+
+      <!-- Interruptor de Geometría Neo-Riemanniana / Diatónica -->
+      <button id="btn-geo-toggle" class="toggle-btn active" title="Mostrar polígonos de escala y acordes">
+        <span>◇</span> Polígonos: <strong id="geo-state-label">ON</strong>
+      </button>
+
+      <!-- Interruptor de Ejes Axiales de Simetría Disminuida -->
+      <button id="btn-dim-axes-toggle" class="toggle-btn active" title="Mostrar ejes axiales de simetría disminuida (dim7) activos">
+        <span>✛</span> Ejes Dim7: <strong id="dim-axes-state-label">ON</strong>
+      </button>
+
+      <!-- Selector de Tema Visual -->
+      <div class="pill-group" role="group" aria-label="Selector de tema visual">
+        <button class="pill-btn active" data-theme-btn="studio">Studio Dark</button>
+        <button class="pill-btn" data-theme-btn="neon">Neon Cyber</button>
+        <button class="pill-btn" data-theme-btn="editorial">Editorial</button>
+      </div>
+    </div>
+	<div>
+		<button class="toggle-btn">
+		<a href="index.html">A Círculo de 5tas A</a>
+		</button>
+	</div>
+
+  </header>
+
+  <!-- ========================================================================
+       ESPACIO DE TRABAJO PRINCIPAL (3 COLUMNAS)
+       ======================================================================== -->
+  <main class="workspace">
+
+    <!-- COLUMNA IZQUIERDA: MODOS GRIEGOS, SINTETIZADOR Y SECUENCIADOR -->
+    <aside class="panel-column">
+      <!-- 1. Selector de Modos Griegos -->
+      <section class="card">
+        <div class="card-header">
+          <h2 class="card-title">1. Centro Modal (Modos Griegos)</h2>
+          <span class="badge" id="mode-badge">Jónico</span>
+        </div>
+        <div class="mode-grid" id="mode-selector">
+          <!-- Generado dinámicamente por JS -->
+        </div>
+      </section>
+
+      <!-- 2. Motor de Síntesis & Complejidad Armónica -->
+      <section class="card">
+        <div class="card-header">
+          <h2 class="card-title">2. Sintetizador &amp; Voicing</h2>
+          <span class="badge">Web Audio API</span>
+        </div>
+        <div class="slider-group">
+          <div class="slider-item">
+            <div class="slider-label-row">
+              <span>Complejidad Armónica</span>
+              <span class="slider-value" id="val-complexity">Tríada (1-3-5)</span>
+            </div>
+            <input type="range" id="slider-complexity" min="0" max="3" step="1" value="1" />
+          </div>
+
+          <div class="slider-item">
+            <div class="slider-label-row">
+              <span>Voicing / Apertura (Spread)</span>
+              <span class="slider-value" id="val-spread">Cerrado (Oct 4)</span>
+            </div>
+            <input type="range" id="slider-spread" min="0" max="2" step="1" value="0" />
+          </div>
+
+          <div class="slider-item">
+            <div class="slider-label-row">
+              <span>Brillo / Filtro Paso-Bajo</span>
+              <span class="slider-value" id="val-cutoff">2200 Hz</span>
+            </div>
+            <input type="range" id="slider-cutoff" min="300" max="6500" step="50" value="2200" />
+          </div>
+
+          <div class="slider-item">
+            <div class="slider-label-row">
+              <span>Tempo Secuenciador (BPM)</span>
+              <span class="slider-value" id="val-bpm">112 BPM</span>
+            </div>
+            <input type="range" id="slider-bpm" min="60" max="180" step="1" value="112" />
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. Constructor y Reproductor de Progresiones -->
+      <section class="card">
+        <div class="card-header">
+          <h2 class="card-title">3. Progresiones &amp; Arpegiador</h2>
+          <span class="badge" id="seq-step-badge">Listo</span>
+        </div>
+
+        <div class="transport-bar">
+          <button id="btn-play-seq" class="btn-play">
+            <span id="play-icon">▶</span> <span id="play-text">Reproducir Progresión</span>
+          </button>
+          <select id="select-arp-style" class="arp-mode-select" title="Modo de articulación">
+            <option value="block">Acorde Bloque</option>
+            <option value="arp-up">Arpegio ↑</option>
+            <option value="arp-wave">Arpegio ↑↓</option>
+            <option value="scale">Escala Modal</option>
+          </select>
+        </div>
+
+        <div class="progression-list" id="progression-list">
+          <!-- Generado dinámicamente por JS -->
+        </div>
+      </section>
+    </aside>
+
+    <!-- COLUMNA CENTRAL: RUEDA CONCÉNTRICA MULTICAPA EN SVG -->
+    <section class="wheel-stage">
+      <div class="stage-hud-top">
+        <div class="tonality-readout">
+          <span class="eyebrow">Tonalidad &amp; Modo Activo</span>
+          <div class="main-key" id="hud-key-title">C Jónico (Mayor)</div>
+          <div class="scale-notes" id="hud-scale-notes">C · D · E · F · G · A · B</div>
+        </div>
+
+        <div class="active-chord-pill">
+          <div class="label">Último Acorde Sonando</div>
+          <div class="chord-name" id="hud-chord-name">Cmaj</div>
+          <div class="chord-tones" id="hud-chord-tones">C4 - E4 - G4</div>
+        </div>
+      </div>
+
+      <div class="svg-wrapper">
+        <svg id="fifths-wheel" viewBox="0 0 600 600" aria-label="Círculo de Quintas Interactivo">
+          <defs>
+            <filter id="glow-filter" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="4" result="blur" />
+              <feComposite in="SourceGraphic" in2="blur" operator="over" />
+            </filter>
+          </defs>
+
+          <!-- Marcador fijo superior a las 12 en punto -->
+          <polygon points="300,6 291,20 309,20" fill="var(--accent-primary)" />
+
+          <!-- Grupo rotatorio que contiene todos los anillos, etiquetas y geometría -->
+          <g id="wheel-rotatable">
+            <!-- Los 3 anillos concéntricos y textos se renderizan vía JS -->
+            <g id="wheel-sectors-layer"></g>
+
+            <!-- Capa de geometría sagrada / polígonos de escala y acordes -->
+            <g id="wheel-geometry-layer">
+              <g id="dim-axes-layer"></g>
+              <polygon id="scale-polygon" points="" />
+              <polygon id="chord-polygon" points="" />
+              <g id="geometry-nodes"></g>
+            </g>
+
+            <!-- Medallón central informativo -->
+            <circle cx="300" cy="300" r="78" fill="var(--bg-panel)" stroke="var(--border-color)" stroke-width="2" />
+            <circle cx="300" cy="300" r="72" fill="none" stroke="var(--accent-primary)" stroke-width="0.8" stroke-dasharray="3 3" opacity="0.6" />
+          </g>
+
+          <!-- Texto central estático (no gira con la rueda para máxima legibilidad) -->
+          <g id="wheel-center-hud" pointer-events="none">
+            <text x="300" y="284" text-anchor="middle" fill="var(--text-muted)" font-size="10" font-weight="700" letter-spacing="1.5">ARMADURA</text>
+            <text x="300" y="307" id="center-sig-label" text-anchor="middle" fill="var(--text-primary)" font-size="18" font-weight="800">0 ♯ / ♭</text>
+            <text x="300" y="326" id="center-rel-label" text-anchor="middle" fill="var(--accent-secondary)" font-size="11" font-weight="600">Rel: Am</text>
+          </g>
+        </svg>
+      </div>
+
+      <div class="stage-hud-bottom">
+        <span class="legend-item"><span class="dot" style="background: var(--accent-primary);"></span> Tónica (I)</span>
+        <span class="legend-item"><span class="dot" style="background: var(--accent-secondary);"></span> Mayores (IV, V)</span>
+        <span class="legend-item"><span class="dot" style="background: var(--accent-tertiary);"></span> Menores (ii, iii, vi)</span>
+        <span class="legend-item"><span class="dot" style="background: #f43f5e;"></span> Sensible (vii°) &amp; Eje Dim7</span>
+        <span class="legend-item" title="Polígono cian: constelación de las 7 notas de la escala. Polígono ámbar: geometría del acorde activo.">
+          <span class="dot" style="border: 2px solid var(--poly-stroke); background: transparent;"></span> Polígono Escala / Acorde
+        </span>
+      </div>
+    </section>
+
+    <!-- COLUMNA DERECHA: PANEL EDUCATIVO DINÁMICO -->
+    <aside class="panel-column">
+      <!-- 1. Pentagrama con Armadura de Clave -->
+      <section class="card">
+        <div class="card-header">
+          <h2 class="card-title">Armadura en Pentagrama</h2>
+          <span class="badge" id="staff-acc-count">Natural</span>
+        </div>
+        <div class="staff-container">
+          <svg id="staff-svg" viewBox="0 0 300 95" width="100%" height="95" aria-label="Pentagrama con armadura de clave">
+            <!-- Renderizado dinámicamente por JS -->
+          </svg>
+          <div class="staff-caption" id="staff-acc-list">Sin alteraciones (C Mayor / A Menor)</div>
+        </div>
+      </section>
+
+      <!-- 2. Tabla Interactiva de los 7 Grados Diatónicos -->
+      <section class="card">
+        <div class="card-header">
+          <h2 class="card-title">Armonía Diatónica (Grados I–vii°)</h2>
+          <span class="badge" id="diatonic-mode-tag">Jónico</span>
+        </div>
+        <table class="degrees-table">
+          <thead>
+            <tr>
+              <th>Grado</th>
+              <th>Acorde</th>
+              <th>Función Armónica</th>
+              <th>Oír</th>
+            </tr>
+          </thead>
+          <tbody id="degrees-tbody">
+            <!-- Filas generadas dinámicamente -->
+          </tbody>
+        </table>
+      </section>
+
+      <!-- 3. Modulación Inteligente -->
+      <section class="card">
+        <div class="card-header">
+          <h2 class="card-title">Modulación Inteligente</h2>
+          <span class="badge">Vecinos</span>
+        </div>
+        <div class="mod-grid" id="modulation-suggestions">
+          <!-- Sugerencias generadas dinámicamente -->
+        </div>
+      </section>
+    </aside>
+
+  </main>
+
+  <!-- Banner de estado de audio -->
+  <div id="audio-toast" class="audio-banner">
+    <span>🔊</span> Haz clic en cualquier sector de la rueda o tecla para activar el sintetizador
+  </div>
+
+  <!-- Cartelito explicativo dinámico al pasar el mouse -->
+  <div id="wheel-tooltip" class="wheel-tooltip" role="tooltip">
+    <div class="tooltip-header">
+      <span class="tooltip-title" id="tt-title">C Mayor</span>
+      <span class="tooltip-badge" id="tt-badge">Grado I</span>
+    </div>
+    <div class="tooltip-body" id="tt-body">Tónica de la tonalidad activa.</div>
+    <div class="tooltip-formula" id="tt-formula">Notas: C - E - G</div>
+  </div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      /* ======================================================================
+         1. DATOS MAESTROS DE TEORÍA MUSICAL Y CÍRCULO DE QUINTAS
+         ====================================================================== */
+      // Orden horario desde las 12 en punto (0 = C, 1 = G, ..., 11 = F)
+      const CIRCLE_DATA = [
+        { index: 0,  major: "C",      minor: "Am",      dim: "B°",   pc: 0,  fifths: 0,  sigText: "0",     sharps: 0, flats: 0, prefFlat: false },
+        { index: 1,  major: "G",      minor: "Em",      dim: "F♯°",  pc: 7,  fifths: 1,  sigText: "1♯",    sharps: 1, flats: 0, prefFlat: false },
+        { index: 2,  major: "D",      minor: "Bm",      dim: "C♯°",  pc: 2,  fifths: 2,  sigText: "2♯",    sharps: 2, flats: 0, prefFlat: false },
+        { index: 3,  major: "A",      minor: "F♯m",     dim: "G♯°",  pc: 9,  fifths: 3,  sigText: "3♯",    sharps: 3, flats: 0, prefFlat: false },
+        { index: 4,  major: "E",      minor: "C♯m",     dim: "D♯°",  pc: 4,  fifths: 4,  sigText: "4♯",    sharps: 4, flats: 0, prefFlat: false },
+        { index: 5,  major: "B/C♭",   minor: "G♯m/A♭m", dim: "A♯°",  pc: 11, fifths: 5,  sigText: "5♯/7♭", sharps: 5, flats: 0, prefFlat: false },
+        { index: 6,  major: "F♯/G♭",  minor: "D♯m/E♭m", dim: "E♯°",  pc: 6,  fifths: 6,  sigText: "6♯/6♭", sharps: 6, flats: 0, prefFlat: false },
+        { index: 7,  major: "D♭/C♯",  minor: "B♭m",     dim: "C°",   pc: 1,  fifths: -5, sigText: "5♭",    sharps: 0, flats: 5, prefFlat: true  },
+        { index: 8,  major: "A♭",     minor: "Fm",      dim: "G°",   pc: 8,  fifths: -4, sigText: "4♭",    sharps: 0, flats: 4, prefFlat: true  },
+        { index: 9,  major: "E♭",     minor: "Cm",      dim: "D°",   pc: 3,  fifths: -3, sigText: "3♭",    sharps: 0, flats: 3, prefFlat: true  },
+        { index: 10, major: "B♭",     minor: "Gm",      dim: "A°",   pc: 10, fifths: -2, sigText: "2♭",    sharps: 0, flats: 2, prefFlat: true  },
+        { index: 11, major: "F",      minor: "Dm",      dim: "E°",   pc: 5,  fifths: -1, sigText: "1♭",    sharps: 0, flats: 1, prefFlat: true  }
+      ];
+
+      const NOTE_NAMES_SHARP = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"];
+      const NOTE_NAMES_FLAT  = ["C", "D♭", "D", "E♭", "E", "F", "G♭", "G", "A♭", "A", "B♭", "B"];
+
+      // Los 7 Modos Griegos con intervalos en semitonos, cualidades de sus 7 tríadas y funciones
+      const GREEK_MODES = [
+        {
+          id: "ionian",
+          name: "Jónico",
+          subtitle: "Mayor Natural",
+          formula: "1 2 3 4 5 6 7",
+          intervals: [0, 2, 4, 5, 7, 9, 11],
+          qualities: ["maj", "min", "min", "maj", "maj", "min", "dim"],
+          romans: ["I", "ii", "iii", "IV", "V", "vi", "vii°"],
+          functions: ["Tónica", "Supertónica", "Mediante", "Subdominante", "Dominante", "Superdominante", "Sensible"],
+          fifthOffset: 0
+        },
+        {
+          id: "dorian",
+          name: "Dórico",
+          subtitle: "Menor con 6ª Mayor",
+          formula: "1 2 ♭3 4 5 6 ♭7",
+          intervals: [0, 2, 3, 5, 7, 9, 10],
+          qualities: ["min", "min", "maj", "maj", "min", "dim", "maj"],
+          romans: ["i", "ii", "♭III", "IV", "v", "vi°", "♭VII"],
+          functions: ["Tónica Menor", "Supertónica", "Mediante", "Subdominante", "Dominante Menor", "Submediante", "Subtónica"],
+          fifthOffset: -2
+        },
+        {
+          id: "phrygian",
+          name: "Frigio",
+          subtitle: "Menor con ♭2",
+          formula: "1 ♭2 ♭3 4 5 ♭6 ♭7",
+          intervals: [0, 1, 3, 5, 7, 8, 10],
+          qualities: ["min", "maj", "maj", "min", "dim", "maj", "min"],
+          romans: ["i", "♭II", "♭III", "iv", "v°", "♭VI", "♭vii"],
+          functions: ["Tónica Frigia", "Napolitano", "Mediante", "Subdominante", "Quinta Disminuida", "Submediante", "Subtónica"],
+          fifthOffset: -4
+        },
+        {
+          id: "lydian",
+          name: "Lidio",
+          subtitle: "Mayor con ♯4",
+          formula: "1 2 3 ♯4 5 6 7",
+          intervals: [0, 2, 4, 6, 7, 9, 11],
+          qualities: ["maj", "maj", "min", "dim", "maj", "min", "min"],
+          romans: ["I", "II", "iii", "♯iv°", "V", "vi", "vii"],
+          functions: ["Tónica Lidia", "Dominante Secund.", "Mediante", "Tritono Lidio", "Dominante", "Superdominante", "Sensible"],
+          fifthOffset: 1
+        },
+        {
+          id: "mixolydian",
+          name: "Mixolidio",
+          subtitle: "Mayor con ♭7",
+          formula: "1 2 3 4 5 6 ♭7",
+          intervals: [0, 2, 4, 5, 7, 9, 10],
+          qualities: ["maj", "min", "dim", "maj", "min", "min", "maj"],
+          romans: ["I", "ii", "iii°", "IV", "v", "vi", "♭VII"],
+          functions: ["Tónica Mixolidia", "Supertónica", "Mediante Dismin.", "Subdominante", "Dominante Menor", "Superdominante", "Subtónica"],
+          fifthOffset: -1
+        },
+        {
+          id: "aeolian",
+          name: "Eólico",
+          subtitle: "Menor Natural",
+          formula: "1 2 ♭3 4 5 ♭6 ♭7",
+          intervals: [0, 2, 3, 5, 7, 8, 10],
+          qualities: ["min", "dim", "maj", "min", "min", "maj", "maj"],
+          romans: ["i", "ii°", "♭III", "iv", "v", "♭VI", "♭VII"],
+          functions: ["Tónica Menor", "Supertónica", "Relativo Mayor", "Subdominante", "Dominante Menor", "Submediante", "Subtónica"],
+          fifthOffset: -3
+        },
+        {
+          id: "locrian",
+          name: "Locrio",
+          subtitle: "Semidisminuido",
+          formula: "1 ♭2 ♭3 4 ♭5 ♭6 ♭7",
+          intervals: [0, 1, 3, 5, 6, 8, 10],
+          qualities: ["dim", "maj", "min", "min", "maj", "maj", "min"],
+          romans: ["i°", "♭II", "♭iii", "iv", "♭V", "♭VI", "♭vii"],
+          functions: ["Tónica Inestable", "Napolitano", "Mediante", "Subdominante", "Quinta Bemol", "Submediante", "Subtónica"],
+          fifthOffset: -5
+        }
+      ];
+
+      // Progresiones armónicas famosas (índices 0..6 de los grados de la escala)
+      const PROGRESSIONS = [
+        { id: "pop",        name: "Pop / Himno Moderno",      numerals: "I – V – vi – IV",   degrees: [0, 4, 5, 3] },
+        { id: "jazz",       name: "Cadencia Jazz II-V-I",      numerals: "ii – V – I – vi",   degrees: [1, 4, 0, 5] },
+        { id: "classic",    name: "Cadencia Auténtica",       numerals: "I – IV – V – I",    degrees: [0, 3, 4, 0] },
+        { id: "fifths",     name: "Círculo Descendente",       numerals: "vi – ii – V – I",   degrees: [5, 1, 4, 0] },
+        { id: "andalusian", name: "Cadencia Andaluza",        numerals: "vi – V – IV – iii", degrees: [5, 4, 3, 2] },
+        { id: "modal",      name: "Vampiro Modal / Épico",    numerals: "I – ♭VII – IV – I", degrees: [0, 6, 3, 0] }
+      ];
+
+      /* ======================================================================
+         2. ESTADO GLOBAL DE LA APLICACIÓN
+         ====================================================================== */
+      const state = {
+        selectedSectorIndex: 0,    // 0 = C
+        ringType: "major",         // "major" | "minor" | "dim"
+        modeId: "ionian",          // Modo griego activo
+        rotateToTop: true,         // Rotar rueda para poner tónica a las 12h
+        showGeometry: true,        // Mostrar polígonos internos
+        showDimAxes: true,         // Mostrar ejes axiales activos de disminuidos
+        complexity: 1,             // 0: 5tas, 1: Tríadas, 2: Séptimas, 3: Novenas
+        spread: 0,                 // 0: Cerrado, 1: Drop-2 / Abierto, 2: Amplio + Sub
+        cutoff: 2200,              // Frecuencia del filtro paso-bajo (Hz)
+        bpm: 112,                  // Tempo del secuenciador
+        selectedProgId: "pop",     // Progresión activa
+        arpStyle: "block",         // "block" | "arp-up" | "arp-wave" | "scale"
+        isPlaying: false,          // Estado del secuenciador
+        currentStep: 0,            // Paso actual del secuenciador
+        activeChordPcs: [0, 4, 7], // Pitch classes del último acorde tocado
+        soundingPcs: []            // Pitch classes sonando ahora mismo
+      };
+
+      let seqTimer = null;
+
+      /* ======================================================================
+         3. MOTOR DE SÍNTESIS POLIFÓNICA (WEB AUDIO API NATIVA)
+         ====================================================================== */
+      class PolySynthEngine {
+        constructor() {
+          this.ctx = null;
+          this.masterGain = null;
+          this.filter = null;
+          this.compressor = null;
+          this.initialized = false;
+        }
+
+        init() {
+          if (this.initialized) {
+            if (this.ctx.state === "suspended") this.ctx.resume();
+            return;
+          }
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          this.ctx = new AudioCtx();
+
+          // Filtro paso-bajo cálido resonante
+          this.filter = this.ctx.createBiquadFilter();
+          this.filter.type = "lowpass";
+          this.filter.frequency.value = state.cutoff;
+          this.filter.Q.value = 1.4;
+
+          // Compresor dinámico para evitar saturación al tocar acordes densos
+          this.compressor = this.ctx.createDynamicsCompressor();
+          this.compressor.threshold.value = -16;
+          this.compressor.knee.value = 18;
+          this.compressor.ratio.value = 4;
+          this.compressor.attack.value = 0.01;
+          this.compressor.release.value = 0.25;
+
+          this.masterGain = this.ctx.createGain();
+          this.masterGain.gain.value = 0.42;
+
+          this.filter.connect(this.compressor);
+          this.compressor.connect(this.masterGain);
+          this.masterGain.connect(this.ctx.destination);
+
+          this.initialized = true;
+          const toast = document.getElementById("audio-toast");
+          if (toast) toast.classList.add("hidden");
+        }
+
+        setCutoff(freq) {
+          if (this.filter && this.ctx) {
+            this.filter.frequency.setTargetAtTime(freq, this.ctx.currentTime, 0.04);
+          }
+        }
+
+        midiToFreq(midi) {
+          return 440 * Math.pow(2, (midi - 69) / 12);
+        }
+
+        // Toca una lista de notas MIDI con envolvente ADSR suave y mezcla de osciladores
+        playNotes(midiNotes, durationSec = 1.1) {
+          this.init();
+          const now = this.ctx.currentTime;
+          const voiceCount = Math.max(1, midiNotes.length);
+          const peakGain = 0.34 / Math.sqrt(voiceCount);
+
+          midiNotes.forEach((midi, idx) => {
+            const freq = this.midiToFreq(midi);
+
+            // Oscilador principal (onda triangular cálida)
+            const osc1 = this.ctx.createOscillator();
+            osc1.type = "triangle";
+            osc1.frequency.setValueAtTime(freq, now);
+
+            // Oscilador secundario (sinusoidal ligeramente desafinada para cuerpo chorus)
+            const osc2 = this.ctx.createOscillator();
+            osc2.type = "sine";
+            osc2.frequency.setValueAtTime(freq, now);
+            osc2.detune.setValueAtTime(idx % 2 === 0 ? 4 : -4, now);
+
+            // Sub-armónico suave en la fundamental
+            let oscSub = null;
+            if (idx === 0) {
+              oscSub = this.ctx.createOscillator();
+              oscSub.type = "sine";
+              oscSub.frequency.setValueAtTime(freq * 0.5, now);
+            }
+
+            // Envolvente ADSR individual por voz
+            const voiceGain = this.ctx.createGain();
+            const attack = 0.025;
+            const decay = 0.22;
+            const sustainLevel = peakGain * 0.62;
+            const release = Math.min(0.45, durationSec * 0.45);
+            const sustainEnd = Math.max(now + attack + decay, now + durationSec - release);
+
+            voiceGain.gain.setValueAtTime(0.0001, now);
+            voiceGain.gain.linearRampToValueAtTime(peakGain, now + attack);
+            voiceGain.gain.exponentialRampToValueAtTime(Math.max(0.001, sustainLevel), now + attack + decay);
+            voiceGain.gain.setValueAtTime(Math.max(0.001, sustainLevel), sustainEnd);
+            voiceGain.gain.exponentialRampToValueAtTime(0.0001, sustainEnd + release);
+
+            osc1.connect(voiceGain);
+            osc2.connect(voiceGain);
+            if (oscSub) {
+              const subGain = this.ctx.createGain();
+              subGain.gain.value = 0.35;
+              oscSub.connect(subGain);
+              subGain.connect(voiceGain);
+            }
+
+            voiceGain.connect(this.filter);
+
+            osc1.start(now);
+            osc2.start(now);
+            if (oscSub) oscSub.start(now);
+
+            const stopTime = sustainEnd + release + 0.05;
+            osc1.stop(stopTime);
+            osc2.stop(stopTime);
+            if (oscSub) oscSub.stop(stopTime);
+          });
+        }
+      }
+
+      const synth = new PolySynthEngine();
+
+      /* ======================================================================
+         4. UTILIDADES DE ARMONÍA Y CÁLCULO DIATÓNICO
+         ====================================================================== */
+      function getActiveSector() {
+        return CIRCLE_DATA[state.selectedSectorIndex];
+      }
+
+      function getActiveMode() {
+        return GREEK_MODES.find(m => m.id === state.modeId) || GREEK_MODES[0];
+      }
+
+      function prefersFlats(sector) {
+        return sector.prefFlat;
+      }
+
+      function pcToNoteName(pc, useFlats = false) {
+        const norm = ((pc % 12) + 12) % 12;
+        return useFlats ? NOTE_NAMES_FLAT[norm] : NOTE_NAMES_SHARP[norm];
+      }
+
+      function pcToCircleIndex(pc) {
+        const norm = ((pc % 12) + 12) % 12;
+        return CIRCLE_DATA.findIndex(item => item.pc === norm);
+      }
+
+      // Devuelve el pitch class de la tónica actual según el anillo seleccionado
+      function getCurrentTonicPc() {
+        const sector = getActiveSector();
+        if (state.ringType === "minor") return (sector.pc + 9) % 12;
+        if (state.ringType === "dim") return (sector.pc + 11) % 12;
+        return sector.pc;
+      }
+
+      // Construye los 7 grados diatónicos de la tonalidad y modo activos
+      function buildDiatonicScale() {
+        const sector = getActiveSector();
+        const mode = getActiveMode();
+        const tonicPc = getCurrentTonicPc();
+        const useFlats = prefersFlats(sector);
+
+        return mode.intervals.map((interval, idx) => {
+          const rootPc = (tonicPc + interval) % 12;
+          const quality = mode.qualities[idx];
+          const rootName = pcToNoteName(rootPc, useFlats);
+          const suffix = quality === "maj" ? "" : (quality === "min" ? "m" : "°");
+
+          return {
+            degreeIdx: idx,
+            roman: mode.romans[idx],
+            funcName: mode.functions[idx],
+            rootPc,
+            rootName,
+            quality,
+            chordLabel: `${rootName}${suffix}`
+          };
+        });
+      }
+
+      // Calcula las notas MIDI y nombres de un acorde según la complejidad y spread
+      function buildChordVoicing(rootPc, quality, useFlats = false) {
+        let intervals = [0, 4, 7];
+        let extSuffix = "";
+
+        if (quality === "maj") {
+          if (state.complexity === 0) { intervals = [0, 7]; extSuffix = "5"; }
+          else if (state.complexity === 1) { intervals = [0, 4, 7]; extSuffix = ""; }
+          else if (state.complexity === 2) { intervals = [0, 4, 7, 11]; extSuffix = "maj7"; }
+          else { intervals = [0, 4, 7, 11, 14]; extSuffix = "maj9"; }
+        } else if (quality === "min") {
+          if (state.complexity === 0) { intervals = [0, 7]; extSuffix = "5"; }
+          else if (state.complexity === 1) { intervals = [0, 3, 7]; extSuffix = "m"; }
+          else if (state.complexity === 2) { intervals = [0, 3, 7, 10]; extSuffix = "m7"; }
+          else { intervals = [0, 3, 7, 10, 14]; extSuffix = "m9"; }
+        } else {
+          // Disminuido / Semidisminuido
+          if (state.complexity === 0) { intervals = [0, 6]; extSuffix = "♭5"; }
+          else if (state.complexity === 1) { intervals = [0, 3, 6]; extSuffix = "°"; }
+          else if (state.complexity === 2) { intervals = [0, 3, 6, 10]; extSuffix = "ø7"; }
+          else { intervals = [0, 3, 6, 10, 13]; extSuffix = "ø7(♭9)"; }
+        }
+
+        const baseMidi = 60 + rootPc; // Octava central C4 = 60
+        let midiNotes = intervals.map(iv => baseMidi + iv);
+
+        // Aplicar Voicing / Apertura (Spread)
+        if (state.spread === 1 && midiNotes.length >= 3) {
+          // Drop-2 / Apertura media: eleva la 3ª una octava
+          midiNotes[1] += 12;
+          midiNotes.sort((a, b) => a - b);
+        } else if (state.spread === 2) {
+          // Apertura amplia: añade bajo una octava abajo y abre voces superiores
+          const bass = midiNotes[0] - 12;
+          const upper = midiNotes.map((n, i) => (i % 2 === 1 ? n + 12 : n));
+          midiNotes = [bass, ...upper].sort((a, b) => a - b);
+        }
+
+        const noteNames = midiNotes.map(m => {
+          const oct = Math.floor(m / 12) - 1;
+          return `${pcToNoteName(m % 12, useFlats)}${oct}`;
+        });
+
+        const pcs = [...new Set(midiNotes.map(m => m % 12))];
+        const rootName = pcToNoteName(rootPc, useFlats);
+
+        return {
+          title: `${rootName}${extSuffix}`,
+          midiNotes,
+          noteNames,
+          pcs
+        };
+      }
+
+      /* ======================================================================
+         5. RENDERIZADO DE LA RUEDA SVG MULTICAPA
+         ====================================================================== */
+      const CX = 300;
+      const CY = 300;
+      const R_OUTER = 278;
+      const R_MID_OUT = 212;
+      const R_MID_IN = 152;
+      const R_INNER = 84;
+
+      function polarToCartesian(cx, cy, radius, angleInDegrees) {
+        const rad = ((angleInDegrees - 90) * Math.PI) / 180.0;
+        return {
+          x: cx + radius * Math.cos(rad),
+          y: cy + radius * Math.sin(rad)
+        };
+      }
+
+      function createSectorPath(cx, cy, rIn, rOut, startAngle, endAngle) {
+        const p1 = polarToCartesian(cx, cy, rOut, startAngle);
+        const p2 = polarToCartesian(cx, cy, rOut, endAngle);
+        const p3 = polarToCartesian(cx, cy, rIn, endAngle);
+        const p4 = polarToCartesian(cx, cy, rIn, startAngle);
+        return [
+          `M ${p1.x.toFixed(2)} ${p1.y.toFixed(2)}`,
+          `A ${rOut} ${rOut} 0 0 1 ${p2.x.toFixed(2)} ${p2.y.toFixed(2)}`,
+          `L ${p3.x.toFixed(2)} ${p3.y.toFixed(2)}`,
+          `A ${rIn} ${rIn} 0 0 0 ${p4.x.toFixed(2)} ${p4.y.toFixed(2)}`,
+          "Z"
+        ].join(" ");
+      }
+
+      function initWheelSVG() {
+        const layer = document.getElementById("wheel-sectors-layer");
+        layer.innerHTML = "";
+
+        CIRCLE_DATA.forEach((item, i) => {
+          const centerAngle = i * 30;
+          const startAngle = centerAngle - 15;
+          const endAngle = centerAngle + 15;
+
+          // --- 1. ANILLO EXTERIOR (TONALIDADES MAYORES) ---
+          const gOuter = document.createElementNS("http://www.w3.org/2000/svg", "g");
+          gOuter.classList.add("sector-group");
+          gOuter.dataset.index = i;
+          gOuter.dataset.ring = "major";
+
+          const pathOuter = document.createElementNS("http://www.w3.org/2000/svg", "path");
+          pathOuter.setAttribute("d", createSectorPath(CX, CY, R_MID_OUT, R_OUTER, startAngle, endAngle));
+          pathOuter.classList.add("sector-path", "sector-outer");
+          pathOuter.id = `sector-major-${i}`;
+
+          const posOuter = polarToCartesian(CX, CY, (R_MID_OUT + R_OUTER) / 2, centerAngle);
+          const textOuter = document.createElementNS("http://www.w3.org/2000/svg", "text");
+          textOuter.setAttribute("x", posOuter.x.toFixed(2));
+          textOuter.setAttribute("y", posOuter.y.toFixed(2));
+          textOuter.classList.add("sector-label", "outer-text");
+          textOuter.dataset.angle = centerAngle;
+          textOuter.textContent = item.major;
+
+          gOuter.appendChild(pathOuter);
+          gOuter.appendChild(textOuter);
+          gOuter.addEventListener("click", () => handleSectorClick(i, "major"));
+          gOuter.addEventListener("mouseenter", (e) => showSectorTooltip(e, i, "major"));
+          gOuter.addEventListener("mousemove", moveSectorTooltip);
+          gOuter.addEventListener("mouseleave", hideSectorTooltip);
+          layer.appendChild(gOuter);
+
+          // --- 2. ANILLO MEDIO (RELATIVA MENOR) ---
+          const gMid = document.createElementNS("http://www.w3.org/2000/svg", "g");
+          gMid.classList.add("sector-group");
+          gMid.dataset.index = i;
+          gMid.dataset.ring = "minor";
+
+          const pathMid = document.createElementNS("http://www.w3.org/2000/svg", "path");
+          pathMid.setAttribute("d", createSectorPath(CX, CY, R_MID_IN, R_MID_OUT, startAngle, endAngle));
+          pathMid.classList.add("sector-path", "sector-mid");
+          pathMid.id = `sector-minor-${i}`;
+
+          const posMid = polarToCartesian(CX, CY, (R_MID_IN + R_MID_OUT) / 2, centerAngle);
+          const textMid = document.createElementNS("http://www.w3.org/2000/svg", "text");
+          textMid.setAttribute("x", posMid.x.toFixed(2));
+          textMid.setAttribute("y", posMid.y.toFixed(2));
+          textMid.classList.add("sector-label", "mid-text");
+          textMid.dataset.angle = centerAngle;
+          textMid.textContent = item.minor;
+
+          gMid.appendChild(pathMid);
+          gMid.appendChild(textMid);
+          gMid.addEventListener("click", () => handleSectorClick(i, "minor"));
+          gMid.addEventListener("mouseenter", (e) => showSectorTooltip(e, i, "minor"));
+          gMid.addEventListener("mousemove", moveSectorTooltip);
+          gMid.addEventListener("mouseleave", hideSectorTooltip);
+          layer.appendChild(gMid);
+
+          // --- 3. ANILLO INTERIOR (ACORDE DISMINUIDO vii° Y ARMADURA) ---
+          const gInner = document.createElementNS("http://www.w3.org/2000/svg", "g");
+          gInner.classList.add("sector-group");
+          gInner.dataset.index = i;
+          gInner.dataset.ring = "dim";
+
+          const pathInner = document.createElementNS("http://www.w3.org/2000/svg", "path");
+          pathInner.setAttribute("d", createSectorPath(CX, CY, R_INNER, R_MID_IN, startAngle, endAngle));
+          pathInner.classList.add("sector-path", "sector-inner");
+          pathInner.id = `sector-dim-${i}`;
+
+          const posDim = polarToCartesian(CX, CY, R_MID_IN - 20, centerAngle);
+          const textDim = document.createElementNS("http://www.w3.org/2000/svg", "text");
+          textDim.setAttribute("x", posDim.x.toFixed(2));
+          textDim.setAttribute("y", posDim.y.toFixed(2));
+          textDim.classList.add("sector-label", "inner-text");
+          textDim.dataset.angle = centerAngle;
+          textDim.textContent = item.dim;
+
+          const posSig = polarToCartesian(CX, CY, R_INNER + 18, centerAngle);
+          const textSig = document.createElementNS("http://www.w3.org/2000/svg", "text");
+          textSig.setAttribute("x", posSig.x.toFixed(2));
+          textSig.setAttribute("y", posSig.y.toFixed(2));
+          textSig.classList.add("sector-label", "sig-text");
+          textSig.dataset.angle = centerAngle;
+          textSig.textContent = item.sigText;
+
+          gInner.appendChild(pathInner);
+          gInner.appendChild(textDim);
+          gInner.appendChild(textSig);
+          gInner.addEventListener("click", () => handleSectorClick(i, "dim"));
+          gInner.addEventListener("mouseenter", (e) => showSectorTooltip(e, i, "dim"));
+          gInner.addEventListener("mousemove", moveSectorTooltip);
+          gInner.addEventListener("mouseleave", hideSectorTooltip);
+          layer.appendChild(gInner);
+        });
+      }
+
+      /* ======================================================================
+         5B. TOOLTIP EXPLICATIVO EN MOUSEOVER SOBRE LOS SECTORES DE LA RUEDA
+         ====================================================================== */
+      function showSectorTooltip(event, sectorIndex, ringType) {
+        const tooltip = document.getElementById("wheel-tooltip");
+        const hoveredItem = CIRCLE_DATA[sectorIndex];
+        const activeSector = getActiveSector();
+        const activeMode = getActiveMode();
+        const diatonicScale = buildDiatonicScale();
+        const useFlats = prefersFlats(activeSector);
+
+        let targetPc = hoveredItem.pc;
+        let targetQuality = "maj";
+        let displayTitle = hoveredItem.major;
+
+        if (ringType === "minor") {
+          targetPc = (hoveredItem.pc + 9) % 12;
+          targetQuality = "min";
+          displayTitle = hoveredItem.minor;
+        } else if (ringType === "dim") {
+          targetPc = (hoveredItem.pc + 11) % 12;
+          targetQuality = "dim";
+          displayTitle = hoveredItem.dim;
+        }
+
+        const matchingDegree = diatonicScale.find(
+          d => d.rootPc === targetPc && d.quality === targetQuality
+        );
+        const matchingNoteDegree = diatonicScale.find(d => d.rootPc === targetPc);
+
+        const badgeEl = document.getElementById("tt-badge");
+        const titleEl = document.getElementById("tt-title");
+        const bodyEl = document.getElementById("tt-body");
+        const formulaEl = document.getElementById("tt-formula");
+
+        titleEl.textContent = displayTitle;
+
+        const chordIntervals = targetQuality === "maj" ? [0, 4, 7] : (targetQuality === "min" ? [0, 3, 7] : [0, 3, 6]);
+        const chordNotes = chordIntervals.map(iv => pcToNoteName((targetPc + iv) % 12, useFlats)).join(" - ");
+        formulaEl.textContent = `Tríada: ${chordNotes} · Armadura propia: ${hoveredItem.sigText}`;
+
+        const activeRootName = pcToNoteName(getCurrentTonicPc(), useFlats);
+
+        if (matchingDegree) {
+          badgeEl.textContent = `Diatónico · ${matchingDegree.roman}`;
+          badgeEl.classList.add("is-diatonic");
+          if (matchingDegree.degreeIdx === 0) {
+            bodyEl.textContent = `Tónica principal (${matchingDegree.roman}) de ${activeRootName} ${activeMode.name}. Centro de reposo y gravedad tonal.`;
+          } else {
+            bodyEl.textContent = `Pertenece al bloque armónico de ${activeRootName} ${activeMode.name} como grado ${matchingDegree.roman} (${matchingDegree.funcName}).`;
+          }
+        } else {
+          badgeEl.classList.remove("is-diatonic");
+          const fifthsDiff = ((sectorIndex - state.selectedSectorIndex + 18) % 12) - 6;
+
+          if (matchingNoteDegree) {
+            badgeEl.textContent = `Intercambio / Sec.`;
+            bodyEl.textContent = `Comparte la nota ${matchingNoteDegree.rootName} (grado ${matchingNoteDegree.roman} de la escala), pero aquí aparece como acorde ${targetQuality === "maj" ? "Mayor (posible Dominante Secundaria)" : targetQuality === "min" ? "Menor (préstamo modal)" : "Disminuido"}.`;
+          } else if (fifthsDiff === 1) {
+            badgeEl.textContent = `+1 Quinta (Dominante)`;
+            bodyEl.textContent = `Tonalidad vecina hacia el lado brillante (añade 1 sostenido respecto a ${activeRootName}). Ideal para modular con fluidez.`;
+          } else if (fifthsDiff === -1) {
+            badgeEl.textContent = `-1 Quinta (Subdominante)`;
+            bodyEl.textContent = `Tonalidad vecina hacia el lado cálido (añade 1 bemol respecto a ${activeRootName}). Modulación muy natural.`;
+          } else {
+            badgeEl.textContent = `Cromático (${fifthsDiff > 0 ? "+" + fifthsDiff : fifthsDiff} quintas)`;
+            bodyEl.textContent = `Fuera de la armadura de ${activeRootName} ${activeMode.name}. Se usa como acorde de paso cromático, sustitución tritonal o modulación lejana.`;
+          }
+        }
+
+        tooltip.classList.add("visible");
+        moveSectorTooltip(event);
+      }
+
+      function moveSectorTooltip(event) {
+        const tooltip = document.getElementById("wheel-tooltip");
+        const offset = 14;
+        let x = event.clientX + offset;
+        let y = event.clientY + offset;
+
+        const rect = tooltip.getBoundingClientRect();
+        if (x + rect.width > window.innerWidth - 12) {
+          x = event.clientX - rect.width - offset;
+        }
+        if (y + rect.height > window.innerHeight - 12) {
+          y = event.clientY - rect.height - offset;
+        }
+
+        tooltip.style.left = `${x}px`;
+        tooltip.style.top = `${y}px`;
+      }
+
+      function hideSectorTooltip() {
+        const tooltip = document.getElementById("wheel-tooltip");
+        tooltip.classList.remove("visible");
+      }
+
+      function showCustomTooltip(event, title, badgeText, isDiatonic, bodyText, formulaText) {
+        const tooltip = document.getElementById("wheel-tooltip");
+        const badgeEl = document.getElementById("tt-badge");
+        document.getElementById("tt-title").textContent = title;
+        badgeEl.textContent = badgeText;
+        badgeEl.classList.toggle("is-diatonic", isDiatonic);
+        document.getElementById("tt-body").textContent = bodyText;
+        document.getElementById("tt-formula").textContent = formulaText;
+        tooltip.classList.add("visible");
+        moveSectorTooltip(event);
+      }
+
+      /* ======================================================================
+         6. ACTUALIZACIÓN VISUAL DE GEOMETRÍA, ROTACIÓN Y PANELES
+         ====================================================================== */
+      function updateWheelVisuals() {
+        const sector = getActiveSector();
+        const mode = getActiveMode();
+        const diatonicScale = buildDiatonicScale();
+
+        // 1. Rotación física de la rueda para colocar la tónica a las 12 en punto
+        const wheelRotatable = document.getElementById("wheel-rotatable");
+        const rotationDeg = state.rotateToTop ? -(state.selectedSectorIndex * 30) : 0;
+        wheelRotatable.style.transform = `rotate(${rotationDeg}deg)`;
+
+        // Contra-rotar las etiquetas de texto para mantenerlas siempre horizontales y legibles
+        document.querySelectorAll(".sector-label").forEach(lbl => {
+          const x = lbl.getAttribute("x");
+          const y = lbl.getAttribute("y");
+          lbl.style.transformOrigin = `${x}px ${y}px`;
+          lbl.style.transform = `rotate(${-rotationDeg}deg)`;
+        });
+
+        // 2. Limpiar y actualizar estados de los 36 sectores
+        document.querySelectorAll(".sector-path").forEach(el => {
+          el.classList.remove("in-scale-maj", "in-scale-min", "in-scale-dim", "in-dim-axis", "is-tonic", "is-sounding");
+        });
+        document.querySelectorAll(".sector-group").forEach(g => {
+          g.classList.remove("active-text");
+        });
+
+        // Determinar el sector disminuido activo (el grado vii° o el disminuido seleccionado)
+        const dimDegree = diatonicScale.find(d => d.quality === "dim");
+        let activeDimCircleIdx = state.ringType === "dim"
+          ? state.selectedSectorIndex
+          : (dimDegree ? pcToCircleIndex((dimDegree.rootPc + 1) % 12) : state.selectedSectorIndex);
+        if (activeDimCircleIdx < 0) activeDimCircleIdx = state.selectedSectorIndex;
+
+        // Los 4 polos del eje axial disminuido (separados cada 3 sectores = 90° = 3ª menor)
+        const dimAxisIndices = [0, 3, 6, 9].map(offset => (activeDimCircleIdx + offset) % 12);
+
+        if (state.showDimAxes) {
+          dimAxisIndices.forEach(cIdx => {
+            const el = document.getElementById(`sector-dim-${cIdx}`);
+            if (el) el.classList.add("in-dim-axis");
+          });
+        }
+
+        // Resaltar cada grado diatónico exactamente en su anillo correspondiente
+        diatonicScale.forEach(deg => {
+          if (deg.quality === "maj") {
+            const cIdx = pcToCircleIndex(deg.rootPc);
+            if (cIdx >= 0) {
+              const el = document.getElementById(`sector-major-${cIdx}`);
+              if (el) el.classList.add("in-scale-maj");
+            }
+          } else if (deg.quality === "min") {
+            const relMajorPc = (deg.rootPc + 3) % 12;
+            const cIdx = pcToCircleIndex(relMajorPc);
+            if (cIdx >= 0) {
+              const el = document.getElementById(`sector-minor-${cIdx}`);
+              if (el) el.classList.add("in-scale-min");
+            }
+          } else if (deg.quality === "dim") {
+            const parentMajorPc = (deg.rootPc + 1) % 12;
+            const cIdx = pcToCircleIndex(parentMajorPc);
+            if (cIdx >= 0) {
+              const el = document.getElementById(`sector-dim-${cIdx}`);
+              if (el) el.classList.add("in-scale-dim");
+            }
+          }
+        });
+
+        // Resaltar la tónica activa según el anillo elegido
+        const tonicEl = document.getElementById(`sector-${state.ringType}-${state.selectedSectorIndex}`);
+        if (tonicEl) {
+          tonicEl.classList.add("is-tonic");
+          tonicEl.parentElement.classList.add("active-text");
+        }
+
+        // Resaltar notas que están sonando en tiempo real
+        state.soundingPcs.forEach(pc => {
+          const cIdx = pcToCircleIndex(pc);
+          if (cIdx >= 0) {
+            const sEl = document.getElementById(`sector-major-${cIdx}`);
+            if (sEl) sEl.classList.add("is-sounding");
+          }
+        });
+
+        // 3. Ejes Axiales Disminuidos Activos (Cruz de simetría dim7 cada 90°)
+        const dimAxesLayer = document.getElementById("dim-axes-layer");
+        dimAxesLayer.innerHTML = "";
+
+        if (state.showDimAxes) {
+          const R_AXIS = 144; // En el borde del anillo interior de disminuidos
+          const axisPairs = [
+            [dimAxisIndices[0], dimAxisIndices[2]], // Eje tritono 1 (180°)
+            [dimAxisIndices[1], dimAxisIndices[3]]  // Eje tritono 2 perpendicular (90°)
+          ];
+
+          const dimNames = dimAxisIndices.map(idx => CIRCLE_DATA[idx].dim).join(" ↔ ");
+          const targetMajors = dimAxisIndices.map(idx => CIRCLE_DATA[idx].major).join(", ");
+
+          axisPairs.forEach(([idxA, idxB]) => {
+            const pA = polarToCartesian(CX, CY, R_AXIS, idxA * 30);
+            const pB = polarToCartesian(CX, CY, R_AXIS, idxB * 30);
+
+            const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            line.setAttribute("x1", pA.x.toFixed(1));
+            line.setAttribute("y1", pA.y.toFixed(1));
+            line.setAttribute("x2", pB.x.toFixed(1));
+            line.setAttribute("y2", pB.y.toFixed(1));
+            line.classList.add("dim-axis-line");
+
+            const handleAxisHover = (e) => {
+              showCustomTooltip(
+                e,
+                `Eje Axial Disminuido (dim7)`,
+                "Simetría 90° / 3ª Menor",
+                true,
+                `Conecta los 4 acordes disminuidos enharmónicos (${dimNames}). Comparten exactamente las mismas notas y permiten modular directamente a ${targetMajors}.`,
+                `Polos del eje: ${dimNames}`
+              );
+            };
+
+            line.addEventListener("mouseenter", handleAxisHover);
+            line.addEventListener("mousemove", moveSectorTooltip);
+            line.addEventListener("mouseleave", hideSectorTooltip);
+            dimAxesLayer.appendChild(line);
+          });
+
+          dimAxisIndices.forEach(idx => {
+            const pt = polarToCartesian(CX, CY, R_AXIS, idx * 30);
+            const node = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            node.setAttribute("cx", pt.x.toFixed(1));
+            node.setAttribute("cy", pt.y.toFixed(1));
+            node.setAttribute("r", "3.5");
+            node.classList.add("dim-axis-node");
+            dimAxesLayer.appendChild(node);
+          });
+        }
+
+        // 4. Geometría Sagrada / Polígonos internos de escala y acorde activo
+        const scalePoly = document.getElementById("scale-polygon");
+        const chordPoly = document.getElementById("chord-polygon");
+        const nodesGroup = document.getElementById("geometry-nodes");
+        nodesGroup.innerHTML = "";
+
+        if (!state.showGeometry) {
+          scalePoly.style.display = "none";
+          chordPoly.style.display = "none";
+        } else {
+          scalePoly.style.display = "block";
+          chordPoly.style.display = "block";
+          const R_GEO = 126;
+
+          // Polígono de la escala modal (ordenado angularmente en el círculo)
+          const scaleAngles = diatonicScale
+            .map(d => pcToCircleIndex(d.rootPc) * 30)
+            .sort((a, b) => a - b);
+
+          const scalePoints = scaleAngles.map(ang => {
+            const pt = polarToCartesian(CX, CY, R_GEO, ang);
+            return `${pt.x.toFixed(1)},${pt.y.toFixed(1)}`;
+          }).join(" ");
+          scalePoly.setAttribute("points", scalePoints);
+
+          scalePoly.onmouseenter = (e) => {
+            const useFlats = prefersFlats(sector);
+            const tonicName = pcToNoteName(getCurrentTonicPc(), useFlats);
+            showCustomTooltip(
+              e,
+              `Polígono de Escala (${tonicName} ${mode.name})`,
+              "7 Notas Diatónicas",
+              true,
+              "Línea azul/cian: une las 7 notas que forman la escala activa alrededor del círculo de quintas. Su forma geométrica invariante revela la estructura de intervalos de la escala.",
+              `Notas: ${diatonicScale.map(d => d.rootName).join(" – ")}`
+            );
+          };
+          scalePoly.onmousemove = moveSectorTooltip;
+          scalePoly.onmouseleave = hideSectorTooltip;
+
+          // Polígono del acorde activo
+          const chordAngles = state.activeChordPcs
+            .map(pc => pcToCircleIndex(pc) * 30)
+            .filter(ang => ang >= 0)
+            .sort((a, b) => a - b);
+
+          const chordPoints = chordAngles.map(ang => {
+            const pt = polarToCartesian(CX, CY, R_GEO, ang);
+            const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            dot.setAttribute("cx", pt.x.toFixed(1));
+            dot.setAttribute("cy", pt.y.toFixed(1));
+            dot.setAttribute("r", "4.5");
+            dot.setAttribute("fill", "var(--accent-primary)");
+            dot.classList.add("geo-node");
+            nodesGroup.appendChild(dot);
+            return `${pt.x.toFixed(1)},${pt.y.toFixed(1)}`;
+          }).join(" ");
+          chordPoly.setAttribute("points", chordPoints);
+
+          chordPoly.onmouseenter = (e) => {
+            const chordTitle = document.getElementById("hud-chord-name").textContent;
+            const chordTones = document.getElementById("hud-chord-tones").textContent;
+            showCustomTooltip(
+              e,
+              `Polígono del Acorde (${chordTitle})`,
+              "Geometría Armónica",
+              true,
+              "Línea ámbar/dorada: conecta las notas individuales del acorde activo o que está sonando en este instante.",
+              `Voces activas: ${chordTones}`
+            );
+          };
+          chordPoly.onmousemove = moveSectorTooltip;
+          chordPoly.onmouseleave = hideSectorTooltip;
+        }
+
+        // 5. Actualizar textos del medallón central y HUD superior
+        const useFlats = prefersFlats(sector);
+        const tonicName = pcToNoteName(getCurrentTonicPc(), useFlats);
+        document.getElementById("center-sig-label").textContent = sector.sigText === "0" ? "0 ♯ / ♭" : sector.sigText;
+        document.getElementById("center-rel-label").textContent = state.ringType === "minor"
+          ? `Rel: ${sector.major}`
+          : `Rel: ${sector.minor}`;
+
+        document.getElementById("hud-key-title").textContent = `${tonicName} ${mode.name} (${mode.subtitle})`;
+        document.getElementById("hud-scale-notes").textContent = diatonicScale.map(d => d.rootName).join(" · ");
+      }
+
+      /* ======================================================================
+         7. PANEL EDUCATIVO: PENTAGRAMA, TABLA DIATÓNICA Y MODULACIÓN
+         ====================================================================== */
+      function renderKeySignatureStaff() {
+        const sector = getActiveSector();
+        const svg = document.getElementById("staff-svg");
+        svg.innerHTML = "";
+
+        // Dibujar las 5 líneas del pentagrama
+        for (let line = 0; line < 5; line++) {
+          const y = 24 + line * 11;
+          const l = document.createElementNS("http://www.w3.org/2000/svg", "line");
+          l.setAttribute("x1", "14");
+          l.setAttribute("x2", "286");
+          l.setAttribute("y1", y);
+          l.setAttribute("y2", y);
+          l.setAttribute("stroke", "var(--staff-ink)");
+          l.setAttribute("stroke-width", "1.1");
+          l.setAttribute("opacity", "0.55");
+          svg.appendChild(l);
+        }
+
+        // Clave de Sol estilizada
+        const clef = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        clef.setAttribute("x", "22");
+        clef.setAttribute("y", "64");
+        clef.setAttribute("fill", "var(--accent-primary)");
+        clef.setAttribute("font-size", "48");
+        clef.setAttribute("font-family", "serif");
+        clef.textContent = "𝄞";
+        svg.appendChild(clef);
+
+        // Posiciones Y en clave de Sol para sostenidos (F5, C5, G5, D5, A4, E5, B4)
+        const sharpYs = [24, 40.5, 18.5, 35, 51.5, 29.5, 46];
+        const sharpNames = ["F♯", "C♯", "G♯", "D♯", "A♯", "E♯", "B♯"];
+
+        // Posiciones Y en clave de Sol para bemoles (B4, E5, A4, D5, G4, C5, F4)
+        const flatYs = [46, 29.5, 51.5, 35, 57, 40.5, 62.5];
+        const flatNames = ["B♭", "E♭", "A♭", "D♭", "G♭", "C♭", "F♭"];
+
+        const countBadge = document.getElementById("staff-acc-count");
+        const caption = document.getElementById("staff-acc-list");
+
+        if (sector.sharps > 0) {
+          countBadge.textContent = `${sector.sharps} Sostenido${sector.sharps > 1 ? "s" : ""}`;
+          caption.textContent = `Alteraciones: ${sharpNames.slice(0, sector.sharps).join(", ")}`;
+          for (let i = 0; i < sector.sharps; i++) {
+            const acc = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            acc.setAttribute("x", 68 + i * 22);
+            acc.setAttribute("y", sharpYs[i] + 5);
+            acc.setAttribute("fill", "var(--accent-secondary)");
+            acc.setAttribute("font-size", "17");
+            acc.setAttribute("font-weight", "700");
+            acc.textContent = "♯";
+            svg.appendChild(acc);
+          }
+        } else if (sector.flats > 0) {
+          countBadge.textContent = `${sector.flats} Bemol${sector.flats > 1 ? "es" : ""}`;
+          caption.textContent = `Alteraciones: ${flatNames.slice(0, sector.flats).join(", ")}`;
+          for (let i = 0; i < sector.flats; i++) {
+            const acc = document.createElementNS("http://www.w3.org/2000/svg", "text");
+            acc.setAttribute("x", 68 + i * 22);
+            acc.setAttribute("y", flatYs[i] + 4);
+            acc.setAttribute("fill", "var(--accent-secondary)");
+            acc.setAttribute("font-size", "18");
+            acc.setAttribute("font-weight", "700");
+            acc.textContent = "♭";
+            svg.appendChild(acc);
+          }
+        } else {
+          countBadge.textContent = "Natural";
+          caption.textContent = "Sin alteraciones (C Mayor / A Menor)";
+        }
+      }
+
+      function renderDiatonicTable() {
+        const tbody = document.getElementById("degrees-tbody");
+        const mode = getActiveMode();
+        const sector = getActiveSector();
+        const useFlats = prefersFlats(sector);
+        const degrees = buildDiatonicScale();
+
+        document.getElementById("diatonic-mode-tag").textContent = mode.name;
+        tbody.innerHTML = "";
+
+        degrees.forEach(deg => {
+          const voicing = buildChordVoicing(deg.rootPc, deg.quality, useFlats);
+          const tr = document.createElement("tr");
+          tr.className = "degree-row";
+          tr.id = `degree-row-${deg.degreeIdx}`;
+
+          tr.innerHTML = `
+            <td class="roman-cell">${deg.roman}</td>
+            <td class="chord-cell">${voicing.title}</td>
+            <td class="func-cell">${deg.funcName}</td>
+            <td><button class="play-mini-btn" title="Escuchar ${voicing.title}">▶</button></td>
+          `;
+
+          tr.addEventListener("click", () => {
+            triggerChord(deg.rootPc, deg.quality, deg.degreeIdx);
+          });
+
+          tbody.appendChild(tr);
+        });
+      }
+
+      function renderModulationSuggestions() {
+        const container = document.getElementById("modulation-suggestions");
+        const idx = state.selectedSectorIndex;
+        const current = CIRCLE_DATA[idx];
+        const dominantIdx = (idx + 1) % 12;
+        const subdomIdx = (idx + 11) % 12;
+
+        const suggestions = [
+          {
+            type: "Dominante (+1 Quinta)",
+            desc: `Añade 1 sostenido; brillo ascendente natural`,
+            targetLabel: CIRCLE_DATA[dominantIdx].major,
+            targetIdx: dominantIdx,
+            targetRing: "major",
+            targetMode: "ionian"
+          },
+          {
+            type: "Subdominante (-1 Quinta)",
+            desc: `Añade 1 bemol; apertura cálida y relajante`,
+            targetLabel: CIRCLE_DATA[subdomIdx].major,
+            targetIdx: subdomIdx,
+            targetRing: "major",
+            targetMode: "ionian"
+          },
+          {
+            type: "Relativo Menor / Mayor",
+            desc: `Misma armadura, cambio de centro emocional`,
+            targetLabel: state.ringType === "minor" ? current.major : current.minor,
+            targetIdx: idx,
+            targetRing: state.ringType === "minor" ? "major" : "minor",
+            targetMode: state.ringType === "minor" ? "ionian" : "aeolian"
+          }
+        ];
+
+        container.innerHTML = "";
+        suggestions.forEach(sug => {
+          const card = document.createElement("div");
+          card.className = "mod-card";
+          card.innerHTML = `
+            <div class="mod-info">
+              <span class="mod-type">${sug.type}</span>
+              <span class="mod-desc">${sug.desc}</span>
+            </div>
+            <div class="mod-target">${sug.targetLabel}</div>
+          `;
+          card.addEventListener("click", () => {
+            state.selectedSectorIndex = sug.targetIdx;
+            state.ringType = sug.targetRing;
+            state.modeId = sug.targetMode;
+            refreshAll();
+            const q = sug.targetRing === "minor" ? "min" : "maj";
+            triggerChord(getCurrentTonicPc(), q, 0);
+          });
+          container.appendChild(card);
+        });
+      }
+
+      function renderModeButtons() {
+        const container = document.getElementById("mode-selector");
+        container.innerHTML = "";
+        GREEK_MODES.forEach(mode => {
+          const btn = document.createElement("button");
+          btn.className = `mode-btn ${mode.id === state.modeId ? "active" : ""}`;
+          btn.innerHTML = `
+            <span class="mode-name">${mode.name}</span>
+            <span class="mode-formula">${mode.formula}</span>
+          `;
+          btn.addEventListener("click", () => {
+            state.modeId = mode.id;
+            if (["dorian", "phrygian", "aeolian"].includes(mode.id)) {
+              state.ringType = "minor";
+            } else if (mode.id === "locrian") {
+              state.ringType = "dim";
+            } else {
+              state.ringType = "major";
+            }
+            refreshAll();
+            const q = mode.qualities[0];
+            triggerChord(getCurrentTonicPc(), q, 0);
+          });
+          container.appendChild(btn);
+        });
+        document.getElementById("mode-badge").textContent = getActiveMode().name;
+      }
+
+      function renderProgressionButtons() {
+        const container = document.getElementById("progression-list");
+        container.innerHTML = "";
+        PROGRESSIONS.forEach(prog => {
+          const btn = document.createElement("button");
+          btn.className = `prog-btn ${prog.id === state.selectedProgId ? "active" : ""}`;
+          btn.innerHTML = `
+            <span class="prog-name">${prog.name}</span>
+            <span class="prog-numerals">${prog.numerals}</span>
+          `;
+          btn.addEventListener("click", () => {
+            state.selectedProgId = prog.id;
+            renderProgressionButtons();
+            if (!state.isPlaying) {
+              startSequencer();
+            } else {
+              state.currentStep = 0;
+            }
+          });
+          container.appendChild(btn);
+        });
+      }
+
+      /* ======================================================================
+         8. INTERACCIÓN SONORA Y SECUENCIADOR / ARPEGIADOR
+         ====================================================================== */
+      function triggerChord(rootPc, quality, degreeIdx = null, durationSec = 1.15) {
+        const useFlats = prefersFlats(getActiveSector());
+        const voicing = buildChordVoicing(rootPc, quality, useFlats);
+
+        synth.playNotes(voicing.midiNotes, durationSec);
+
+        state.activeChordPcs = voicing.pcs;
+        state.soundingPcs = voicing.pcs;
+
+        document.getElementById("hud-chord-name").textContent = voicing.title;
+        document.getElementById("hud-chord-tones").textContent = voicing.noteNames.join(" - ");
+
+        document.querySelectorAll(".degree-row").forEach(r => r.classList.remove("playing-row"));
+        if (degreeIdx !== null) {
+          const row = document.getElementById(`degree-row-${degreeIdx}`);
+          if (row) row.classList.add("playing-row");
+        }
+
+        updateWheelVisuals();
+
+        clearTimeout(triggerChord._clearTimer);
+        triggerChord._clearTimer = setTimeout(() => {
+          state.soundingPcs = [];
+          updateWheelVisuals();
+        }, Math.min(900, durationSec * 850));
+      }
+
+      function handleSectorClick(sectorIndex, ringType) {
+        state.selectedSectorIndex = sectorIndex;
+        state.ringType = ringType;
+
+        if (ringType === "minor" && ["ionian", "lydian", "mixolydian"].includes(state.modeId)) {
+          state.modeId = "aeolian";
+        } else if (ringType === "major" && ["aeolian", "dorian", "phrygian", "locrian"].includes(state.modeId)) {
+          state.modeId = "ionian";
+        } else if (ringType === "dim") {
+          state.modeId = "locrian";
+        }
+
+        refreshAll();
+        const tonicPc = getCurrentTonicPc();
+        const q = ringType === "minor" ? "min" : (ringType === "dim" ? "dim" : "maj");
+        triggerChord(tonicPc, q, 0);
+      }
+
+      function startSequencer() {
+        stopSequencer();
+        state.isPlaying = true;
+        state.currentStep = 0;
+
+        const playBtn = document.getElementById("btn-play-seq");
+        playBtn.classList.add("playing");
+        document.getElementById("play-icon").textContent = "■";
+        document.getElementById("play-text").textContent = "Detener";
+
+        const tick = () => {
+          if (!state.isPlaying) return;
+          const diatonic = buildDiatonicScale();
+          const useFlats = prefersFlats(getActiveSector());
+          const beatSec = 60 / state.bpm;
+
+          if (state.arpStyle === "scale") {
+            const deg = diatonic[state.currentStep % diatonic.length];
+            const midi = 60 + deg.rootPc;
+            synth.playNotes([midi], beatSec * 0.9);
+            state.soundingPcs = [deg.rootPc];
+            document.getElementById("hud-chord-name").textContent = `${deg.rootName} (${deg.roman})`;
+            document.getElementById("hud-chord-tones").textContent = `Grado ${deg.degreeIdx + 1} · ${deg.funcName}`;
+            document.getElementById("seq-step-badge").textContent = `Nota ${deg.degreeIdx + 1}/7`;
+            updateWheelVisuals();
+            state.currentStep++;
+            seqTimer = setTimeout(tick, beatSec * 1000);
+          } else {
+            const prog = PROGRESSIONS.find(p => p.id === state.selectedProgId) || PROGRESSIONS[0];
+            const degIdx = prog.degrees[state.currentStep % prog.degrees.length];
+            const deg = diatonic[degIdx];
+            const voicing = buildChordVoicing(deg.rootPc, deg.quality, useFlats);
+
+            document.getElementById("seq-step-badge").textContent = `${deg.roman} (${voicing.title})`;
+
+            if (state.arpStyle === "block") {
+              triggerChord(deg.rootPc, deg.quality, degIdx, beatSec * 1.85);
+              state.currentStep++;
+              seqTimer = setTimeout(tick, beatSec * 2000);
+            } else {
+              // Arpegiador nota por nota dentro del compás
+              const notes = state.arpStyle === "arp-wave"
+                ? [...voicing.midiNotes, ...voicing.midiNotes.slice(1, -1).reverse()]
+                : voicing.midiNotes;
+
+              state.activeChordPcs = voicing.pcs;
+              document.getElementById("hud-chord-name").textContent = voicing.title;
+              document.getElementById("hud-chord-tones").textContent = voicing.noteNames.join(" - ");
+              document.querySelectorAll(".degree-row").forEach(r => r.classList.remove("playing-row"));
+              const row = document.getElementById(`degree-row-${degIdx}`);
+              if (row) row.classList.add("playing-row");
+
+              const subStepMs = (beatSec * 2000) / notes.length;
+              notes.forEach((midi, nIdx) => {
+                setTimeout(() => {
+                  if (!state.isPlaying) return;
+                  synth.playNotes([midi], (subStepMs / 1000) * 1.35);
+                  state.soundingPcs = [midi % 12];
+                  updateWheelVisuals();
+                }, nIdx * subStepMs);
+              });
+
+              state.currentStep++;
+              seqTimer = setTimeout(tick, beatSec * 2000);
+            }
+          }
+        };
+
+        tick();
+      }
+
+      function stopSequencer() {
+        state.isPlaying = false;
+        clearTimeout(seqTimer);
+        state.soundingPcs = [];
+        const playBtn = document.getElementById("btn-play-seq");
+        playBtn.classList.remove("playing");
+        document.getElementById("play-icon").textContent = "▶";
+        document.getElementById("play-text").textContent = "Reproducir Progresión";
+        document.getElementById("seq-step-badge").textContent = "Listo";
+        document.querySelectorAll(".degree-row").forEach(r => r.classList.remove("playing-row"));
+        updateWheelVisuals();
+      }
+
+      /* ======================================================================
+         9. EVENTOS DE INTERFAZ Y SINCRONIZACIÓN GLOBAL
+         ====================================================================== */
+      function refreshAll() {
+        const diatonic = buildDiatonicScale();
+        const useFlats = prefersFlats(getActiveSector());
+        const tonic = diatonic[0];
+        const voicing = buildChordVoicing(tonic.rootPc, tonic.quality, useFlats);
+        state.activeChordPcs = voicing.pcs;
+
+        renderModeButtons();
+        renderKeySignatureStaff();
+        renderDiatonicTable();
+        renderModulationSuggestions();
+        updateWheelVisuals();
+      }
+
+      function bindUIEvents() {
+        // Temas visuales
+        document.querySelectorAll("[data-theme-btn]").forEach(btn => {
+          btn.addEventListener("click", () => {
+            document.querySelectorAll("[data-theme-btn]").forEach(b => b.classList.remove("active"));
+            btn.classList.add("active");
+            document.documentElement.setAttribute("data-theme", btn.dataset.themeBtn);
+          });
+        });
+
+        // Toggle rotación física
+        const btnRotate = document.getElementById("btn-rotate-toggle");
+        btnRotate.addEventListener("click", () => {
+          state.rotateToTop = !state.rotateToTop;
+          btnRotate.classList.toggle("active", state.rotateToTop);
+          document.getElementById("rotate-state-label").textContent = state.rotateToTop ? "ON" : "OFF";
+          updateWheelVisuals();
+        });
+
+        // Toggle geometría
+        const btnGeo = document.getElementById("btn-geo-toggle");
+        btnGeo.addEventListener("click", () => {
+          state.showGeometry = !state.showGeometry;
+          btnGeo.classList.toggle("active", state.showGeometry);
+          document.getElementById("geo-state-label").textContent = state.showGeometry ? "ON" : "OFF";
+          updateWheelVisuals();
+        });
+
+        // Toggle ejes axiales de disminuidos
+        const btnDimAxes = document.getElementById("btn-dim-axes-toggle");
+        btnDimAxes.addEventListener("click", () => {
+          state.showDimAxes = !state.showDimAxes;
+          btnDimAxes.classList.toggle("active", state.showDimAxes);
+          document.getElementById("dim-axes-state-label").textContent = state.showDimAxes ? "ON" : "OFF";
+          updateWheelVisuals();
+        });
+
+        // Slider Complejidad Armónica
+        const complexityLabels = [
+          "Power Chord (1-5)",
+          "Tríada (1-3-5)",
+          "Séptima (1-3-5-7)",
+          "Novena (1-3-5-7-9)"
+        ];
+        document.getElementById("slider-complexity").addEventListener("input", e => {
+          state.complexity = parseInt(e.target.value, 10);
+          document.getElementById("val-complexity").textContent = complexityLabels[state.complexity];
+          refreshAll();
+        });
+
+        // Slider Voicing / Spread
+        const spreadLabels = [
+          "Cerrado (Oct 4)",
+          "Drop-2 (Abierto)",
+          "Amplio + Bajo Sub"
+        ];
+        document.getElementById("slider-spread").addEventListener("input", e => {
+          state.spread = parseInt(e.target.value, 10);
+          document.getElementById("val-spread").textContent = spreadLabels[state.spread];
+        });
+
+        // Slider Brillo / Filtro
+        document.getElementById("slider-cutoff").addEventListener("input", e => {
+          state.cutoff = parseInt(e.target.value, 10);
+          document.getElementById("val-cutoff").textContent = `${state.cutoff} Hz`;
+          synth.setCutoff(state.cutoff);
+        });
+
+        // Slider BPM
+        document.getElementById("slider-bpm").addEventListener("input", e => {
+          state.bpm = parseInt(e.target.value, 10);
+          document.getElementById("val-bpm").textContent = `${state.bpm} BPM`;
+        });
+
+        // Botón Play / Stop secuenciador
+        document.getElementById("btn-play-seq").addEventListener("click", () => {
+          if (state.isPlaying) {
+            stopSequencer();
+          } else {
+            startSequencer();
+          }
+        });
+
+        // Selector de Modo de Arpegio
+        document.getElementById("select-arp-style").addEventListener("change", e => {
+          state.arpStyle = e.target.value;
+          if (state.isPlaying) startSequencer();
+        });
+      }
+
+      // Arranque de la aplicación
+      window.addEventListener("DOMContentLoaded", () => {
+        initWheelSVG();
+        renderProgressionButtons();
+        bindUIEvents();
+        refreshAll();
+      });
+    })();
+  </script>
+</body>
+</html>
