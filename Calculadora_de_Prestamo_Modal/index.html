@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calculadora de Préstamo Modal</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Tone.js para síntesis de acordes en tiempo real sin dependencias externas -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            slate: {
+              850: '#161f33',
+              900: '#0f172a',
+              950: '#090d16',
+            }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen antialiased selection:bg-indigo-500 selection:text-white flex flex-col">
+
+  <!-- Barra superior -->
+  <header class="border-b border-slate-800/80 bg-slate-900/70 backdrop-blur-md sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path>
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-xl font-bold tracking-tight text-white">Calculadora de Préstamo Modal</h1>
+          <p class="text-xs text-slate-400">Intercambio modal paralelo y tabla de grados diatónicos</p>
+        </div>
+      </div>
+
+      <!-- Controles principales -->
+      <div class="flex flex-wrap items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+        <!-- Selector de Tonalidad -->
+        <div class="flex items-center bg-slate-850 border border-slate-700/80 rounded-xl p-1.5 shadow-inner">
+          <label for="rootSelect" class="text-xs font-semibold uppercase tracking-wider text-slate-400 px-2.5">Tonalidad:</label>
+          <select id="rootSelect" class="bg-slate-800 text-white font-bold text-sm rounded-lg px-3 py-1.5 border border-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer">
+            <!-- Opciones generadas por JS -->
+          </select>
+        </div>
+
+        <!-- Selector de Alteraciones -->
+        <div class="flex items-center bg-slate-850 border border-slate-700/80 rounded-xl p-1 text-xs font-medium">
+          <button id="btnPrefAuto" class="px-2.5 py-1.5 rounded-lg bg-indigo-600 text-white shadow transition">Auto</button>
+          <button id="btnPrefFlats" class="px-2.5 py-1.5 rounded-lg text-slate-400 hover:text-white transition">Bemoles (♭)</button>
+          <button id="btnPrefSharps" class="px-2.5 py-1.5 rounded-lg text-slate-400 hover:text-white transition">Sostenidos (♯)</button>
+        </div>
+
+        <!-- Botón de Audio -->
+        <button id="btnAudioToggle" class="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-slate-200 transition" title="Activar/Desactivar sonido al hacer clic en los acordes">
+          <span id="audioIcon" class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span>Audio: ON</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Contenido Principal -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+    <!-- Panel de Análisis Rápido / Acorde Seleccionado -->
+    <section id="inspectorPanel" class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 sm:p-5 shadow-xl flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 transition-all">
+      <div class="space-y-1">
+        <div class="flex items-center gap-2">
+          <span class="px-2.5 py-0.5 rounded-md text-xs font-bold uppercase tracking-wider bg-indigo-500/20 text-indigo-300 border border-indigo-500/30" id="inspMode">Modo Jónico</span>
+          <span class="px-2.5 py-0.5 rounded-md text-xs font-mono font-semibold bg-slate-800 text-slate-300 border border-slate-700" id="inspDegree">Grado: I</span>
+          <span id="inspCharacteristicBadge" class="hidden px-2.5 py-0.5 rounded-md text-xs font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30">Acorde Característico</span>
+        </div>
+        <div class="flex items-baseline gap-3 pt-1">
+          <h2 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight" id="inspChordName">Cmaj7</h2>
+          <span class="text-sm text-slate-400 font-medium" id="inspRoman">Imaj7</span>
+        </div>
+        <p class="text-xs sm:text-sm text-slate-400" id="inspDescription">
+          Acorde tónico principal de la tonalidad mayor. Haz clic en cualquier celda de la matriz para escuchar el acorde y añadirlo a tu progresión de préstamo modal.
+        </p>
+      </div>
+
+      <!-- Notas del acorde y botón de acción -->
+      <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full lg:w-auto bg-slate-950/60 p-3.5 rounded-xl border border-slate-800/80">
+        <div>
+          <span class="block text-[11px] uppercase tracking-wider text-slate-500 font-semibold mb-1.5">Notas del Acorde (Tétrada)</span>
+          <div id="inspNotes" class="flex items-center gap-2">
+            <span class="px-2.5 py-1 rounded-lg bg-slate-800 text-indigo-300 font-mono text-sm font-bold border border-slate-700">C</span>
+            <span class="px-2.5 py-1 rounded-lg bg-slate-800 text-slate-200 font-mono text-sm font-semibold border border-slate-700">E</span>
+            <span class="px-2.5 py-1 rounded-lg bg-slate-800 text-slate-200 font-mono text-sm font-semibold border border-slate-700">G</span>
+            <span class="px-2.5 py-1 rounded-lg bg-slate-800 text-slate-200 font-mono text-sm font-semibold border border-slate-700">B</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 w-full sm:w-auto justify-end pt-2 sm:pt-0">
+          <button id="btnPlayCurrent" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold border border-slate-700 flex items-center gap-1.5 transition">
+            <svg class="w-4 h-4 text-indigo-400" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"/></svg>
+            Escuchar
+          </button>
+          <button id="btnAddProgression" class="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-lg shadow-indigo-600/25 flex items-center gap-1.5 transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            Añadir a Progresión
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Leyenda y Filtros de Vista -->
+    <div class="flex flex-wrap items-center justify-between gap-3 text-xs">
+      <div class="flex flex-wrap items-center gap-4">
+        <div class="flex items-center gap-1.5">
+          <span class="w-3 h-3 rounded-sm bg-indigo-500/20 border border-indigo-500/50 inline-block"></span>
+          <span class="text-slate-400">Tonalidad Base (Jónico)</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="w-3 h-3 rounded-sm bg-amber-500/20 border border-amber-500/50 inline-block"></span>
+          <span class="text-slate-400">Préstamos Modales Más Usados</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="text-slate-500 italic">💡 Haz clic en cualquier celda para probar su sonoridad.</span>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <label class="inline-flex items-center gap-2 cursor-pointer text-slate-300 select-none bg-slate-900 px-3 py-1.5 rounded-lg border border-slate-800">
+          <input type="checkbox" id="chkHighlightPopular" checked class="rounded border-slate-700 bg-slate-800 text-indigo-600 focus:ring-indigo-500">
+          <span>Resaltar préstamos habituales</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Tabla Principal de Referencia y Cálculo de Préstamo Modal (Basada en el CSV) -->
+    <section class="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse min-w-[920px]">
+          <thead>
+            <tr class="bg-slate-950/90 border-b border-slate-800 text-xs uppercase tracking-wider text-slate-400">
+              <th class="py-3.5 px-4 font-bold text-slate-200 sticky left-0 bg-slate-950 z-10 border-r border-slate-800/80 w-44">
+                Modo / Escala
+              </th>
+              <th class="py-3.5 px-3 text-center font-bold border-r border-slate-800/50">Grado I</th>
+              <th class="py-3.5 px-3 text-center font-bold border-r border-slate-800/50">Grado II</th>
+              <th class="py-3.5 px-3 text-center font-bold border-r border-slate-800/50">Grado III</th>
+              <th class="py-3.5 px-3 text-center font-bold border-r border-slate-800/50">Grado IV</th>
+              <th class="py-3.5 px-3 text-center font-bold border-r border-slate-800/50">Grado V</th>
+              <th class="py-3.5 px-3 text-center font-bold border-r border-slate-800/50">Grado VI</th>
+              <th class="py-3.5 px-3 text-center font-bold">Grado VII</th>
+            </tr>
+          </thead>
+          <tbody id="modalTableBody" class="divide-y divide-slate-800/70 text-sm">
+            <!-- Filas generadas dinámicamente desde el modelo del CSV -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Constructor de Progresión con Préstamo Modal -->
+    <section class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
+        <div>
+          <h3 class="text-base font-bold text-white flex items-center gap-2">
+            <span>Laboratorio de Progresiones Modales</span>
+            <span id="progKeyBadge" class="text-xs font-mono px-2 py-0.5 rounded bg-slate-800 text-indigo-400 border border-slate-700">Tonalidad: C</span>
+          </h3>
+          <p class="text-xs text-slate-400">Combina acordes diatónicos con préstamos de modos paralelos y escucha la cadencia completa.</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <button id="btnPreset1" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 border border-slate-700 transition" title="I - IV - ivm7 - I">
+            Ej: Cadencia Plagal Menor
+          </button>
+          <button id="btnPreset2" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 border border-slate-700 transition" title="Imaj7 - bVImaj7 - bVII7 - Imaj7">
+            Ej: Cadencia Épica (Mario)
+          </button>
+          <button id="btnPlayProgression" class="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-md shadow-emerald-600/20 flex items-center gap-1.5 transition">
+            <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z"/></svg>
+            Reproducir Todo
+          </button>
+          <button id="btnCopyProgression" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 transition">
+            Copiar
+          </button>
+          <button id="btnClearProgression" class="px-3 py-1.5 rounded-lg bg-rose-950/50 hover:bg-rose-900/60 text-rose-300 text-xs font-medium border border-rose-800/50 transition">
+            Limpiar
+          </button>
+        </div>
+      </div>
+
+      <!-- Contenedor de tarjetas de la progresión -->
+      <div id="progressionContainer" class="min-h-[88px] flex flex-wrap items-center gap-2.5 p-3 rounded-xl bg-slate-950/70 border border-dashed border-slate-800">
+        <!-- Acordes añadidos por el usuario -->
+      </div>
+    </section>
+
+    <!-- Tabla de Referencia Teórica Rápida (Grados del CSV) -->
+    <section class="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 space-y-3">
+      <div class="flex items-center justify-between">
+        <h3 class="text-sm font-bold uppercase tracking-wider text-slate-300">Referencia de Grados y Fórmulas Modales (CSV)</h3>
+        <span class="text-xs text-slate-500">Estructura intervalica paralela</span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-xs font-mono min-w-[760px]">
+          <thead>
+            <tr class="border-b border-slate-800 text-slate-400">
+              <th class="py-2 px-3">Modo</th>
+              <th class="py-2 px-3">Fórmula Escala</th>
+              <th class="py-2 px-3">I</th>
+              <th class="py-2 px-3">II</th>
+              <th class="py-2 px-3">III</th>
+              <th class="py-2 px-3">IV</th>
+              <th class="py-2 px-3">V</th>
+              <th class="py-2 px-3">VI</th>
+              <th class="py-2 px-3">VII</th>
+            </tr>
+          </thead>
+          <tbody id="referenceDegreesBody" class="divide-y divide-slate-800/50 text-slate-300">
+            <!-- Rellenado dinámicamente -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Notificación Toast -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none">
+    <div class="bg-slate-800 border border-slate-700 text-white px-4 py-2.5 rounded-xl shadow-2xl text-xs font-medium flex items-center gap-2">
+      <span class="w-2 h-2 rounded-full bg-indigo-400"></span>
+      <span id="toastMessage">Mensaje</span>
+    </div>
+  </div>
+
+  <script>
+    /**
+     * ESTRUCTURA DE DATOS BASADA EN EL CSV: "Calculadora de préstamo Modal A - Hoja 1.csv"
+     * Contiene los 7 modos griegos, sus intervalos desde la tónica (en semitonos),
+     * la letra natural base de cada grado (0=C, 1=D, 2=E, 3=F, 4=G, 5=A, 6=B) para ortografía musical exacta,
+     * la calidad del acorde (ej. maj7, m7, 7, m7b5) y la nomenclatura romana exacta del CSV.
+     */
+    const MODAL_DATA = [
+      {
+        id: 'ionian',
+        name: 'Jónico',
+        subtitle: 'Escala Mayor Natural',
+        formula: '1 - 2 - 3 - 4 - 5 - 6 - 7',
+        badgeColor: 'indigo',
+        isBase: true,
+        degrees: [
+          { roman: 'Imaj7', semitones: 0, letterOffset: 0, quality: 'maj7', intervals: [0, 4, 7, 11], popular: false, desc: 'Tónica mayor (Grado I del modo Jónico).' },
+          { roman: 'iim7', semitones: 2, letterOffset: 1, quality: 'm7', intervals: [0, 3, 7, 10], popular: false, desc: 'Subdominante diatónico menor (Grado II Jónico).' },
+          { roman: 'iiim7', semitones: 4, letterOffset: 2, quality: 'm7', intervals: [0, 3, 7, 10], popular: false, desc: 'Mediante diatónica menor (Grado III Jónico).' },
+          { roman: 'IVmaj7', semitones: 5, letterOffset: 3, quality: 'maj7', intervals: [0, 4, 7, 11], popular: false, desc: 'Subdominante mayor principal (Grado IV Jónico).' },
+          { roman: 'V7', semitones: 7, letterOffset: 4, quality: '7', intervals: [0, 4, 7, 10], popular: false, desc: 'Dominante primario con tritono hacia I (Grado V Jónico).' },
+          { roman: 'vim7', semitones: 9, letterOffset: 5, quality: 'm7', intervals: [0, 3, 7, 10], popular: false, desc: 'Relativo menor / tónica secundaria (Grado VI Jónico).' },
+          { roman: 'viim7b5', semitones: 11, letterOffset: 6, quality: 'm7b5', intervals: [0, 3, 6, 10], popular: false, desc: 'Sensible semidisminuida diatónica (Grado VII Jónico).' }
+        ]
+      },
+      {
+        id: 'dorian',
+        name: 'Dórico',
+        subtitle: 'Menor con 6ta Mayor (♮6)',
+        formula: '1 - 2 - ♭3 - 4 - 5 - 6 - ♭7',
+        badgeColor: 'cyan',
+        isBase: false,
+        degrees: [
+          { roman: 'im7', semitones: 0, letterOffset: 0, quality: 'm7', intervals: [0, 3, 7, 10], popular: true, desc: 'Tónica menor (intercambio paralelo para convertir I en menor).' },
+          { roman: 'iim7', semitones: 2, letterOffset: 1, quality: 'm7', intervals: [0, 3, 7, 10], popular: false, desc: 'Grado II menor del modo Dórico.' },
+          { roman: 'bIIImaj7', semitones: 3, letterOffset: 2, quality: 'maj7', intervals: [0, 4, 7, 11], popular: true, desc: 'Préstamo muy usado: acorde mayor sobre el tercer grado bemol.' },
+          { roman: 'IV7', semitones: 5, letterOffset: 3, quality: '7', intervals: [0, 4, 7, 10], popular: true, desc: 'Acorde característico Dórico (IV dominante con 6ta mayor de la escala).' },
+          { roman: 'vm7', semitones: 7, letterOffset: 4, quality: 'm7', intervals: [0, 3, 7, 10], popular: false, desc: 'Dominante menor modal (sin sensible).' },
+          { roman: 'vim7b5', semitones: 9, letterOffset: 5, quality: 'm7b5', intervals: [0, 3, 6, 10], popular: false, desc: 'Semidisminuido sobre la 6ta mayor (característico del Dórico).' },
+          { roman: 'bVIImaj7', semitones: 10, letterOffset: 6, quality: 'maj7', intervals: [0, 4, 7, 11], popular: true, desc: 'Subtónica mayor con séptima mayor.' }
+        ]
+      },
+      {
+        id: 'phrygian',
+        name: 'Frigio',
+        subtitle: 'Menor con 2da Menor (♭2)',
+        formula: '1 - ♭2 - ♭3 - 4 - 5 - ♭6 - ♭7',
+        badgeColor: 'rose',
+        isBase: false,
+        degrees: [
+          { roman: 'im7', semitones: 0, letterOffset: 0, quality: 'm7', intervals: [0, 3, 7, 10], popular: false, desc: 'Tónica menor frigia.' },
+          { roman: 'bIImaj7', semitones: 1, letterOffset: 1, quality: 'maj7', intervals: [0, 4, 7, 11], popular: true, desc: 'Acorde Napolitano / Característico Frigio. Gran tensión descendente hacia I.' },
+          { roman: 'bIII7', semitones: 3, letterOffset: 2, quality: '7', intervals: [0, 4, 7, 10], popular: false, desc: 'Dominante secundario hacia bVI.' },
+          { roman: 'ivm7', semitones: 5, letterOffset: 3, quality: 'm7', intervals: [0, 3, 7, 10], popular: false, desc: 'Subdominante menor.' },
+          { roman: 'vm7b5', semitones: 7, letterOffset: 4, quality: 'm7b5', intervals: [0, 3, 6, 10], popular: false, desc: 'Quinto grado semidisminuido del modo Frigio.' },
+          { roman: 'bVImaj7', semitones: 8, letterOffset: 5, quality: 'maj7', intervals: [0, 4, 7, 11], popular: false, desc: 'Sexto grado bemol mayor.' },
+          { roman: 'bviim7', semitones: 10, letterOffset: 6, quality: 'm7', intervals: [0, 3, 7, 10], popular: false, desc: 'Séptimo grado bemol menor.' }
+        ]
+      },
+      {
+        id: 'lydian',
+        name: 'Lidio',
+        subtitle: 'Mayor con 4ta Aumentada (♯4)',
+        formula: '1 - 2 - 3 - ♯4 - 5 - 6 - 7',
+        badgeColor: 'emerald',
+        isBase: false,
+        degrees: [
+          { roman: 'Imaj7', semitones: 0, letterOffset: 0, quality: 'maj7', intervals: [0, 4, 7, 11], popular: false, desc: 'Tónica mayor con brillo lidio (#11).' },
+          { roman: 'II7', semitones: 2, letterOffset: 1, quality: '7', intervals: [0, 4, 7, 10], popular: true, desc: 'Acorde característico Lidio (II mayor/dominante con #4 de la escala).' },
+          { roman: 'iiim7', semitones: 4, letterOffset: 2, quality: 'm7', intervals: [0, 3, 7, 10], popular: false, desc: 'Tercer grado menor.' },
+          { roman: '#ivm7b5', semitones: 6, letterOffset: 3, quality: 'm7b5', intervals: [0, 3, 6, 10], popular: true, desc: 'Acorde semidisminuido sobre la cuarta aumentada (#IV).' },
+          { roman: 'Vmaj7', semitones: 7, letterOffset: 4, quality: 'maj7', intervals: [0, 4, 7, 11], popular: false, desc: 'Quinto grado mayor con séptima mayor (por la #4).' },
+          { roman: 'vim7', semitones: 9, letterOffset: 5, quality: 'm7', intervals: [0, 3, 7, 10], popular: false, desc: 'Sexto grado menor.' },
+          { roman: 'viim7', semitones: 11, letterOffset: 6, quality: 'm7', intervals: [0, 3, 7, 10], popular: false, desc: 'Séptimo grado menor (sin tritono por la #4).' }
+        ]
+      },
+      {
+        id: 'mixolydian',
+        name: 'Mixolidio',
+        subtitle: 'Mayor con 7ma Menor (♭7)',
+        formula: '1 - 2 - 3 - 4 - 5 - 6 - ♭7',
+        badgeColor: 'amber',
+        isBase: false,
+        degrees: [
+          { roman: 'I7', semitones: 0, letterOffset: 0, quality: '7', intervals: [0, 4, 7, 10], popular: true, desc: 'Tónica dominante (sonoridad Blues/Rock/Funk).' },
+          { roman: 'iim7', semitones: 2, letterOffset: 1, quality: 'm7', intervals: [0, 3, 7, 10], popular: false, desc: 'Segundo grado menor.' },
+          { roman: 'iiim7b5', semitones: 4, letterOffset: 2, quality: 'm7b5', intervals: [0, 3, 6, 10], popular: false, desc: 'Tercer grado semidisminuido.' },
+          { roman: 'IVmaj7', semitones: 5, letterOffset: 3, quality: 'maj7', intervals: [0, 4, 7, 11], popular: false, desc: 'Subdominante mayor.' },
+          { roman: 'vm7', semitones: 7, letterOffset: 4, quality: 'm7', intervals: [0, 3, 7, 10], popular: true, desc: 'Quinto grado menor (préstamo habitual para suavizar la dominante).' },
+          { roman: 'vim7', semitones: 9, letterOffset: 5, quality: 'm7', intervals: [0, 3, 7, 10], popular: false, desc: 'Sexto grado menor.' },
+          { roman: 'bVIImaj7', semitones: 10, letterOffset: 6, quality: 'maj7', intervals: [0, 4, 7, 11], popular: true, desc: 'Acorde característico Mixolidio (bVII mayor). Muy usado en cadencias rock/pop.' }
+        ]
+      },
+      {
+        id: 'aeolian',
+        name: 'Eólico',
+        subtitle: 'Escala Menor Natural',
+        formula: '1 - 2 - ♭3 - 4 - 5 - ♭6 - ♭7',
+        badgeColor: 'purple',
+        isBase: false,
+        degrees: [
+          { roman: 'im7', semitones: 0, letterOffset: 0, quality: 'm7', intervals: [0, 3, 7, 10], popular: true, desc: 'Tónica menor natural.' },
+          { roman: 'iim7b5', semitones: 2, letterOffset: 1, quality: 'm7b5', intervals: [0, 3, 6, 10], popular: true, desc: 'Segundo grado semidisminuido (prepara cadencias menores).' },
+          { roman: 'bIIImaj7', semitones: 3, letterOffset: 2, quality: 'maj7', intervals: [0, 4, 7, 11], popular: true, desc: 'Mediante mayor (relativo mayor del modo paralelo).' },
+          { roman: 'ivm7', semitones: 5, letterOffset: 3, quality: 'm7', intervals: [0, 3, 7, 10], popular: true, desc: 'Subdominante menor (uno de los préstamos modales más emotivos y comunes).' },
+          { roman: 'vm7', semitones: 7, letterOffset: 4, quality: 'm7', intervals: [0, 3, 7, 10], popular: false, desc: 'Quinto grado menor.' },
+          { roman: 'bVImaj7', semitones: 8, letterOffset: 5, quality: 'maj7', intervals: [0, 4, 7, 11], popular: true, desc: 'Submediante mayor (bVI). Fundamental en cadencias épicas y cinematográficas.' },
+          { roman: 'bVII7', semitones: 10, letterOffset: 6, quality: '7', intervals: [0, 4, 7, 10], popular: true, desc: 'Acorde "Backdoor Dominant" (bVII7 que resuelve directamente a Imaj7).' }
+        ]
+      },
+      {
+        id: 'locrian',
+        name: 'Locrio',
+        subtitle: 'Menor con ♭2 y ♭5',
+        formula: '1 - ♭2 - ♭3 - 4 - ♭5 - ♭6 - ♭7',
+        badgeColor: 'slate',
+        isBase: false,
+        degrees: [
+          { roman: 'im7b5', semitones: 0, letterOffset: 0, quality: 'm7b5', intervals: [0, 3, 6, 10], popular: false, desc: 'Tónica semidisminuida inestable.' },
+          { roman: 'bIImaj7', semitones: 1, letterOffset: 1, quality: 'maj7', intervals: [0, 4, 7, 11], popular: false, desc: 'Segundo grado bemol mayor.' },
+          { roman: 'biiim7', semitones: 3, letterOffset: 2, quality: 'm7', intervals: [0, 3, 7, 10], popular: false, desc: 'Tercer grado bemol menor.' },
+          { roman: 'ivm7', semitones: 5, letterOffset: 3, quality: 'm7', intervals: [0, 3, 7, 10], popular: false, desc: 'Cuarto grado menor.' },
+          { roman: 'bVmaj7', semitones: 6, letterOffset: 4, quality: 'maj7', intervals: [0, 4, 7, 11], popular: false, desc: 'Acorde característico Locrio sobre el tritono (bV).' },
+          { roman: 'bVI7', semitones: 8, letterOffset: 5, quality: '7', intervals: [0, 4, 7, 10], popular: false, desc: 'Sexto grado bemol dominante.' },
+          { roman: 'bviim7', semitones: 10, letterOffset: 6, quality: 'm7', intervals: [0, 3, 7, 10], popular: false, desc: 'Séptimo grado bemol menor.' }
+        ]
+      }
+    ];
+
+    // Definición de tonalidades disponibles (igual que las columnas/hojas del CSV: C, C#, Db, D, Eb, E, F, F#, Gb, G, Ab, A, Bb, B)
+    const ROOTS = [
+      { label: 'C (Do)', semitone: 0, letterIndex: 0, preferFlats: false },
+      { label: 'C♯ (Do♯)', semitone: 1, letterIndex: 0, preferFlats: false },
+      { label: 'D♭ (Re♭)', semitone: 1, letterIndex: 1, preferFlats: true },
+      { label: 'D (Re)', semitone: 2, letterIndex: 1, preferFlats: false },
+      { label: 'E♭ (Mi♭)', semitone: 3, letterIndex: 2, preferFlats: true },
+      { label: 'E (Mi)', semitone: 4, letterIndex: 2, preferFlats: false },
+      { label: 'F (Fa)', semitone: 5, letterIndex: 3, preferFlats: true },
+      { label: 'F♯ (Fa♯)', semitone: 6, letterIndex: 3, preferFlats: false },
+      { label: 'G♭ (Sol♭)', semitone: 6, letterIndex: 4, preferFlats: true },
+      { label: 'G (Sol)', semitone: 7, letterIndex: 4, preferFlats: false },
+      { label: 'A♭ (La♭)', semitone: 8, letterIndex: 5, preferFlats: true },
+      { label: 'A (La)', semitone: 9, letterIndex: 5, preferFlats: false },
+      { label: 'B♭ (Si♭)', semitone: 10, letterIndex: 6, preferFlats: true },
+      { label: 'B (Si)', semitone: 11, letterIndex: 6, preferFlats: false }
+    ];
+
+    const LETTERS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+    const NATURAL_SEMITONES = [0, 2, 4, 5, 7, 9, 11];
+
+    // Estado de la aplicación
+    let state = {
+      rootIndex: 0, // C por defecto
+      accidentalPref: 'auto', // 'auto' | 'flats' | 'sharps'
+      highlightPopular: true,
+      audioEnabled: true,
+      selectedCell: null, // { modeId, degreeIndex, chordData }
+      progression: []
+    };
+
+    // Sintetizador polifónico con Tone.js
+    let synth = null;
+    let isPlayingSequence = false;
+
+    function initAudio() {
+      if (!synth && typeof Tone !== 'undefined') {
+        synth = new Tone.PolySynth(Tone.Synth, {
+          oscillator: { type: 'triangle' },
+          envelope: {
+            attack: 0.04,
+            decay: 0.3,
+            sustain: 0.4,
+            release: 1.2
+          },
+          volume: -10
+        }).toDestination();
+      }
+    }
+
+    /**
+     * Calcula el nombre exacto de una nota respetando la ortografía diatónica del grado
+     * (por ejemplo, en C Frigio, bII debe ser Db y no C#, manteniendo la letra D).
+     */
+    function getSpelledNote(rootObj, degreeSemitones, letterOffset) {
+      const targetSemitone = (rootObj.semitone + degreeSemitones) % 12;
+      const targetLetterIdx = (rootObj.letterIndex + letterOffset) % 7;
+      const letterName = LETTERS[targetLetterIdx];
+      const naturalSemitone = NATURAL_SEMITONES[targetLetterIdx];
+
+      // Diferencia circular entre -6 y +5
+      let diff = (targetSemitone - naturalSemitone + 12) % 12;
+      if (diff > 6) diff -= 12;
+
+      // Si el usuario forzó bemoles o sostenidos manualmente y la alteración es doble o incómoda, simplificamos
+      if (state.accidentalPref === 'flats') {
+        const flatNames = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
+        return flatNames[targetSemitone];
+      }
+      if (state.accidentalPref === 'sharps') {
+        const sharpNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+        return sharpNames[targetSemitone];
+      }
+
+      // Ortografía teórica exacta por grado
+      if (diff === 0) return letterName;
+      if (diff === 1) return letterName + '#';
+      if (diff === -1) return letterName + 'b';
+      if (diff === 2) return letterName + '##';
+      if (diff === -2) return letterName + 'bb';
+
+      // Fallback cromático seguro
+      const fallback = rootObj.preferFlats
+        ? ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B']
+        : ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+      return fallback[targetSemitone];
+    }
+
+    /**
+     * Obtiene las 4 notas individuales de un acorde (1, 3, 5, 7) y sus frecuencias para audio
+     */
+    function getChordDetails(rootObj, degreeObj) {
+      const chordRootName = getSpelledNote(rootObj, degreeObj.semitones, degreeObj.letterOffset);
+      const chordName = `${chordRootName}${degreeObj.quality}`;
+      const absoluteRootSemi = (rootObj.semitone + degreeObj.semitones) % 12;
+
+      // Construcción de notas del acorde (tétrada: grados 1, 3, 5, 7 respecto a la fundamental del acorde)
+      const chordLetterOffsets = [0, 2, 4, 6];
+      const baseChordRootObj = {
+        semitone: absoluteRootSemi,
+        letterIndex: (rootObj.letterIndex + degreeObj.letterOffset) % 7,
+        preferFlats: chordRootName.includes('b') || rootObj.preferFlats
+      };
+
+      const noteNames = degreeObj.intervals.map((interval, idx) => {
+        return getSpelledNote(baseChordRootObj, interval, chordLetterOffsets[idx]);
+      });
+
+      // Notas con octava para Tone.js (voicing equilibrado en octavas 3 y 4)
+      const chromaticTone = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+      const baseOctave = absoluteRootSemi >= 7 ? 3 : 4;
+      const toneNotes = degreeObj.intervals.map((interval) => {
+        const totalSemi = absoluteRootSemi + interval;
+        const noteIdx = totalSemi % 12;
+        const oct = baseOctave + Math.floor(totalSemi / 12);
+        return `${chromaticTone[noteIdx]}${oct}`;
+      });
+
+      return {
+        chordName,
+        chordRootName,
+        roman: degreeObj.roman,
+        quality: degreeObj.quality,
+        noteNames,
+        toneNotes,
+        popular: degreeObj.popular,
+        desc: degreeObj.desc
+      };
+    }
+
+    async function playChord(toneNotes, duration = '2n') {
+      if (!state.audioEnabled) return;
+      try {
+        await Tone.start();
+        initAudio();
+        if (synth) {
+          synth.releaseAll();
+          synth.triggerAttackRelease(toneNotes, duration);
+        }
+      } catch (err) {
+        console.warn('Audio no disponible:', err);
+      }
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toastMessage');
+      toastMsg.textContent = msg;
+      toast.classList.remove('translate-y-20', 'opacity-0');
+      clearTimeout(window._toastTimer);
+      window._toastTimer = setTimeout(() => {
+        toast.classList.add('translate-y-20', 'opacity-0');
+      }, 2400);
+    }
+
+    function updateInspector(modeObj, degreeIdx, details) {
+      state.selectedCell = { modeId: modeObj.id, degreeIndex: degreeIdx, modeName: modeObj.name, details };
+
+      document.getElementById('inspMode').textContent = `Modo ${modeObj.name}`;
+      document.getElementById('inspDegree').textContent = `Grado ${degreeIdx + 1} (${details.roman})`;
+      document.getElementById('inspChordName').textContent = details.chordName;
+      document.getElementById('inspRoman').textContent = details.roman;
+      document.getElementById('inspDescription').textContent = details.desc;
+
+      const popBadge = document.getElementById('inspCharacteristicBadge');
+      if (details.popular) {
+        popBadge.classList.remove('hidden');
+      } else {
+        popBadge.classList.add('hidden');
+      }
+
+      const notesContainer = document.getElementById('inspNotes');
+      notesContainer.innerHTML = details.noteNames.map((n, i) => `
+        <span class="px-2.5 py-1 rounded-lg ${i === 0 ? 'bg-indigo-950/80 text-indigo-300 border-indigo-700/70' : 'bg-slate-800 text-slate-200 border-slate-700'} font-mono text-sm font-bold border">
+          ${n}
+        </span>
+      `).join('');
+    }
+
+    function renderTable() {
+      const rootObj = ROOTS[state.rootIndex];
+      const tbody = document.getElementById('modalTableBody');
+      document.getElementById('progKeyBadge').textContent = `Tonalidad: ${rootObj.label.split(' ')[0]}`;
+
+      tbody.innerHTML = '';
+
+      MODAL_DATA.forEach((mode) => {
+        const tr = document.createElement('tr');
+        tr.className = mode.isBase
+          ? 'bg-indigo-950/20 hover:bg-indigo-950/30 transition-colors'
+          : 'hover:bg-slate-850/70 transition-colors';
+
+        // Columna de Nombre del Modo
+        const tdMode = document.createElement('td');
+        tdMode.className = `py-3 px-4 sticky left-0 z-10 border-r border-slate-800/80 ${mode.isBase ? 'bg-slate-900' : 'bg-slate-900/95'}`;
+        tdMode.innerHTML = `
+          <div class="flex items-center justify-between gap-2">
+            <div>
+              <div class="font-bold text-slate-100 flex items-center gap-1.5">
+                <span>${mode.name}</span>
+                ${mode.isBase ? '<span class="text-[10px] uppercase px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-semibold">Base</span>' : ''}
+              </div>
+              <div class="text-[11px] text-slate-400 leading-tight mt-0.5">${mode.subtitle}</div>
+            </div>
+          </div>
+        `;
+        tr.appendChild(tdMode);
+
+        // 7 Celdas de Grados
+        mode.degrees.forEach((deg, dIdx) => {
+          const details = getChordDetails(rootObj, deg);
+          const td = document.createElement('td');
+          td.className = 'p-1.5 text-center border-r border-slate-800/40 last:border-r-0';
+
+          const isSelected = state.selectedCell &&
+            state.selectedCell.modeId === mode.id &&
+            state.selectedCell.degreeIndex === dIdx;
+
+          let cellStyle = 'bg-slate-850/60 hover:bg-slate-800 border-slate-800 text-slate-200';
+          if (mode.isBase) {
+            cellStyle = 'bg-indigo-950/40 hover:bg-indigo-900/50 border-indigo-800/60 text-indigo-100';
+          } else if (state.highlightPopular && details.popular) {
+            cellStyle = 'bg-amber-950/25 hover:bg-amber-900/40 border-amber-700/40 text-amber-100';
+          }
+
+          if (isSelected) {
+            cellStyle += ' ring-2 ring-indigo-400 bg-slate-800';
+          }
+
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = `w-full py-2.5 px-2 rounded-xl border transition-all flex flex-col items-center justify-center gap-0.5 group cursor-pointer ${cellStyle}`;
+          btn.innerHTML = `
+            <span class="text-base font-extrabold tracking-tight group-hover:scale-105 transition-transform">${details.chordName}</span>
+            <span class="text-[11px] font-mono ${mode.isBase ? 'text-indigo-300/80' : (state.highlightPopular && details.popular ? 'text-amber-300/80' : 'text-slate-400')}">${details.roman}</span>
+          `;
+
+          btn.addEventListener('click', () => {
+            updateInspector(mode, dIdx, details);
+            playChord(details.toneNotes);
+            renderTable();
+          });
+
+          // Doble clic añade directamente a la progresión
+          btn.addEventListener('dblclick', () => {
+            addChordToProgression(mode.name, details);
+          });
+
+          td.appendChild(btn);
+          tr.appendChild(td);
+        });
+
+        tbody.appendChild(tr);
+      });
+
+      // Actualizar inspector si ya había una celda seleccionada
+      if (state.selectedCell) {
+        const modeObj = MODAL_DATA.find(m => m.id === state.selectedCell.modeId) || MODAL_DATA[0];
+        const dIdx = state.selectedCell.degreeIndex;
+        const details = getChordDetails(rootObj, modeObj.degrees[dIdx]);
+        updateInspector(modeObj, dIdx, details);
+      } else {
+        const defaultDetails = getChordDetails(rootObj, MODAL_DATA[0].degrees[0]);
+        updateInspector(MODAL_DATA[0], 0, defaultDetails);
+      }
+    }
+
+    function renderReferenceTable() {
+      const tbody = document.getElementById('referenceDegreesBody');
+      tbody.innerHTML = MODAL_DATA.map(mode => `
+        <tr class="${mode.isBase ? 'bg-indigo-950/20 text-indigo-200' : 'hover:bg-slate-800/30'}">
+          <td class="py-2 px-3 font-sans font-semibold">${mode.name}</td>
+          <td class="py-2 px-3 text-slate-400">${mode.formula}</td>
+          ${mode.degrees.map(d => `<td class="py-2 px-3 ${d.popular && !mode.isBase ? 'text-amber-300 font-semibold' : ''}">${d.roman}</td>`).join('')}
+        </tr>
+      `).join('');
+    }
+
+    function addChordToProgression(modeName, details) {
+      state.progression.push({
+        id: Date.now() + Math.random(),
+        modeName,
+        chordName: details.chordName,
+        roman: details.roman,
+        toneNotes: details.toneNotes
+      });
+      renderProgression();
+      showToast(`Añadido: ${details.chordName} (${modeName})`);
+    }
+
+    function renderProgression() {
+      const container = document.getElementById('progressionContainer');
+      if (state.progression.length === 0) {
+        container.innerHTML = `
+          <div class="w-full text-center py-4 text-xs text-slate-500">
+            Tu progresión está vacía. Selecciona un acorde de la tabla superior y pulsa <strong class="text-slate-300">"Añadir a Progresión"</strong> (o haz doble clic sobre una celda).
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = '';
+      state.progression.forEach((item, index) => {
+        const card = document.createElement('div');
+        card.id = `prog-card-${index}`;
+        card.className = 'relative group bg-slate-900 border border-slate-700 hover:border-indigo-500 rounded-xl px-4 py-2.5 flex flex-col items-center min-w-[92px] shadow-md transition-all cursor-pointer';
+        card.innerHTML = `
+          <button type="button" data-remove="${index}" class="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-slate-800 hover:bg-rose-600 text-slate-300 hover:text-white border border-slate-600 text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition" title="Eliminar acorde">✕</button>
+          <span class="text-[10px] uppercase tracking-wider text-indigo-400 font-semibold">${item.modeName}</span>
+          <span class="text-base font-extrabold text-white mt-0.5">${item.chordName}</span>
+          <span class="text-[11px] font-mono text-slate-400">${item.roman}</span>
+        `;
+
+        card.addEventListener('click', (e) => {
+          if (e.target.dataset.remove !== undefined) {
+            state.progression.splice(Number(e.target.dataset.remove), 1);
+            renderProgression();
+            return;
+          }
+          playChord(item.toneNotes);
+        });
+
+        container.appendChild(card);
+
+        if (index < state.progression.length - 1) {
+          const arrow = document.createElement('span');
+          arrow.className = 'text-slate-600 font-bold text-sm select-none';
+          arrow.textContent = '→';
+          container.appendChild(arrow);
+        }
+      });
+    }
+
+    async function playFullProgression() {
+      if (state.progression.length === 0) {
+        showToast('Añade al menos un acorde a la progresión.');
+        return;
+      }
+      if (isPlayingSequence) return;
+      isPlayingSequence = true;
+
+      for (let i = 0; i < state.progression.length; i++) {
+        const item = state.progression[i];
+        const card = document.getElementById(`prog-card-${i}`);
+        if (card) card.classList.add('ring-2', 'ring-emerald-400', 'bg-slate-800');
+        playChord(item.toneNotes, '2n');
+        await new Promise(r => setTimeout(r, 950));
+        if (card) card.classList.remove('ring-2', 'ring-emerald-400', 'bg-slate-800');
+      }
+
+      isPlayingSequence = false;
+    }
+
+    function loadPreset(type) {
+      const rootObj = ROOTS[state.rootIndex];
+      state.progression = [];
+
+      if (type === 1) {
+        // Cadencia Plagal Menor: Imaj7 (Jónico) -> IVmaj7 (Jónico) -> ivm7 (Eólico) -> Imaj7 (Jónico)
+        const steps = [
+          { modeIdx: 0, degIdx: 0 },
+          { modeIdx: 0, degIdx: 3 },
+          { modeIdx: 5, degIdx: 3 },
+          { modeIdx: 0, degIdx: 0 }
+        ];
+        steps.forEach(s => {
+          const mode = MODAL_DATA[s.modeIdx];
+          const details = getChordDetails(rootObj, mode.degrees[s.degIdx]);
+          state.progression.push({
+            id: Math.random(),
+            modeName: mode.name,
+            chordName: details.chordName,
+            roman: details.roman,
+            toneNotes: details.toneNotes
+          });
+        });
+      } else if (type === 2) {
+        // Cadencia Épica: Imaj7 (Jónico) -> bVImaj7 (Eólico) -> bVII7 (Eólico) -> Imaj7 (Jónico)
+        const steps = [
+          { modeIdx: 0, degIdx: 0 },
+          { modeIdx: 5, degIdx: 5 },
+          { modeIdx: 5, degIdx: 6 },
+          { modeIdx: 0, degIdx: 0 }
+        ];
+        steps.forEach(s => {
+          const mode = MODAL_DATA[s.modeIdx];
+          const details = getChordDetails(rootObj, mode.degrees[s.degIdx]);
+          state.progression.push({
+            id: Math.random(),
+            modeName: mode.name,
+            chordName: details.chordName,
+            roman: details.roman,
+            toneNotes: details.toneNotes
+          });
+        });
+      }
+
+      renderProgression();
+      playFullProgression();
+    }
+
+    // Inicialización de eventos e interfaz
+    document.addEventListener('DOMContentLoaded', () => {
+      const rootSelect = document.getElementById('rootSelect');
+      ROOTS.forEach((r, idx) => {
+        const opt = document.createElement('option');
+        opt.value = idx;
+        opt.textContent = r.label;
+        rootSelect.appendChild(opt);
+      });
+
+      rootSelect.addEventListener('change', (e) => {
+        state.rootIndex = Number(e.target.value);
+        renderTable();
+      });
+
+      // Botones de alteraciones
+      const prefButtons = {
+        auto: document.getElementById('btnPrefAuto'),
+        flats: document.getElementById('btnPrefFlats'),
+        sharps: document.getElementById('btnPrefSharps')
+      };
+
+      function setAccidentalPref(pref) {
+        state.accidentalPref = pref;
+        Object.entries(prefButtons).forEach(([key, btn]) => {
+          if (key === pref) {
+            btn.className = 'px-2.5 py-1.5 rounded-lg bg-indigo-600 text-white shadow transition';
+          } else {
+            btn.className = 'px-2.5 py-1.5 rounded-lg text-slate-400 hover:text-white transition';
+          }
+        });
+        renderTable();
+      }
+
+      prefButtons.auto.addEventListener('click', () => setAccidentalPref('auto'));
+      prefButtons.flats.addEventListener('click', () => setAccidentalPref('flats'));
+      prefButtons.sharps.addEventListener('click', () => setAccidentalPref('sharps'));
+
+      // Toggle Audio
+      const btnAudio = document.getElementById('btnAudioToggle');
+      btnAudio.addEventListener('click', () => {
+        state.audioEnabled = !state.audioEnabled;
+        const icon = document.getElementById('audioIcon');
+        const label = btnAudio.querySelector('span:last-child');
+        if (state.audioEnabled) {
+          icon.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse';
+          label.textContent = 'Audio: ON';
+        } else {
+          icon.className = 'w-2 h-2 rounded-full bg-slate-500';
+          label.textContent = 'Audio: OFF';
+        }
+      });
+
+      // Checkbox resaltar préstamos habituales
+      document.getElementById('chkHighlightPopular').addEventListener('change', (e) => {
+        state.highlightPopular = e.target.checked;
+        renderTable();
+      });
+
+      // Botones Inspector
+      document.getElementById('btnPlayCurrent').addEventListener('click', () => {
+        if (state.selectedCell) {
+          playChord(state.selectedCell.details.toneNotes);
+        }
+      });
+
+      document.getElementById('btnAddProgression').addEventListener('click', () => {
+        if (state.selectedCell) {
+          addChordToProgression(state.selectedCell.modeName, state.selectedCell.details);
+        }
+      });
+
+      // Botones Progresión
+      document.getElementById('btnPreset1').addEventListener('click', () => loadPreset(1));
+      document.getElementById('btnPreset2').addEventListener('click', () => loadPreset(2));
+      document.getElementById('btnPlayProgression').addEventListener('click', playFullProgression);
+
+      document.getElementById('btnClearProgression').addEventListener('click', () => {
+        state.progression = [];
+        renderProgression();
+      });
+
+      document.getElementById('btnCopyProgression').addEventListener('click', () => {
+        if (state.progression.length === 0) {
+          showToast('No hay acordes para copiar.');
+          return;
+        }
+        const rootName = ROOTS[state.rootIndex].label.split(' ')[0];
+        const text = `[Tonalidad: ${rootName}] ` + state.progression.map(p => `${p.chordName} (${p.roman} - ${p.modeName})`).join(' -> ');
+        const tempInput = document.createElement('textarea');
+        tempInput.value = text;
+        document.body.appendChild(tempInput);
+        tempInput.select();
+        document.execCommand('copy');
+        document.body.removeChild(tempInput);
+        showToast('Progresión copiada al portapapeles.');
+      });
+
+      // Render inicial
+      renderTable();
+      renderReferenceTable();
+      renderProgression();
+    });
+  </script>
+</body>
+</html>
